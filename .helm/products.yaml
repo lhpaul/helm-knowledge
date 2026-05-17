@@ -1,0 +1,12 @@
+# Multi-product registry for Helm.
+#
+# Each entry lists a knowledge repository that contains its own .helm/product.yaml.
+# Paths are resolved relative to the PARENT directory of HELM_KNOWLEDGE_REPO_PATH
+# (the "sibling layout" — both repos must be cloned into the same parent directory).
+# Absolute paths are also supported.
+#
+# See decisions/004-multi-product-registry.md for the full design rationale.
+
+products:
+  - path: .                              # this repo (helm-knowledge → product slug: helm)
+  - path: ../helm-playground-knowledge  # sibling repo (product slug: helm-playground)
