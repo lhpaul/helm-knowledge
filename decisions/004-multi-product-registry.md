@@ -58,7 +58,7 @@ Legacy endpoints (`/api/product`, `/api/items`) remain unchanged.
 Rejected: the data directory is ephemeral scratch space, not a source of truth. Product
 configuration belongs with the knowledge repositories (version-controlled, auditable).
 
-### Scan a `HELM_PRODUCTS_BASE_PATH` directory for `*/. helm/product.yaml`
+### Scan a `HELM_PRODUCTS_BASE_PATH` directory for `*/.helm/product.yaml`
 
 Rejected for v0: directory scanning is implicit and hard to reason about ordering. An explicit
 registry file is more predictable and easier to audit.
@@ -87,10 +87,11 @@ must use absolute paths in `products.yaml` (those paths won't be portable betwee
 Future fix: support git URLs with clone-on-demand (v2+).
 
 **externalId collision (Known Limitation):** The Item Store uses `data/items/{externalId}.json`
-(flat, no product namespace). If two Products ever have an item with the same `externalId`
-(e.g., both have `issue_1` from different GitHub Projects), the second write overwrites the
-first. In practice this is unlikely (different GitHub Projects have independent issue number
-sequences), but it is a correctness risk at scale.
+(flat, no product namespace). Because each GitHub Project has its own independent issue number
+sequence, two Products will routinely have items with the same `externalId` (e.g., both will
+have `issue_1`, `issue_2`, etc.). The second write to `data/items/issue_1.json` silently
+overwrites the first, corrupting the earlier product's state. This is a real correctness risk,
+not merely a theoretical one.
 
 **v1 fix path:** Namespace item files as `data/items/{productSlug}/{externalId}.json`. A
 migration script will rename existing files. The `ItemStore` constructor will accept a

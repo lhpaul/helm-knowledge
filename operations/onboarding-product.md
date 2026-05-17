@@ -11,7 +11,7 @@ Follow these steps in order. Estimated time: 30–60 minutes.
 - A GitHub Project (v2) created for the product — note the project number.
 - Helm server running locally (`pnpm run dev` in `apps/api/`).
 - Both knowledge repos cloned side-by-side on your machine:
-  ```
+  ```text
   ~/projects/
   ├── helm-knowledge/               ← HELM_KNOWLEDGE_REPO_PATH
   └── <new-product>-knowledge/      ← sibling directory
@@ -190,9 +190,17 @@ curl http://localhost:4000/api/products/<product-slug>/items
 
 ---
 
-## Step 7 — Create seed items (optional)
+## Step 7 — Create seed items (optional, primary product only)
 
-To create a first item for testing:
+> **Warning:** `POST /api/items` currently writes items for the **primary product**
+> (`getProductConfig()` slug), not the newly-onboarded product. Using this step for
+> a newly-registered product will place items under the wrong `productSlug` and produce
+> misleading validation results. Multi-product item creation will be added in Session 8.
+>
+> To verify the new product is registered, skip to the `curl` commands in Step 6 above
+> (`GET /api/products` and `GET /api/products/<product-slug>/items`).
+
+If you specifically want to seed the **primary** product for other reasons:
 
 ```bash
 curl -X POST http://localhost:4000/api/items \
@@ -202,9 +210,6 @@ curl -X POST http://localhost:4000/api/items \
     "triggeredBy": "human:<your-github-handle>"
   }'
 ```
-
-> The API currently uses the primary product's slug from `getProductConfig()`.
-> Multi-product item creation (specifying which product) will be added in Session 8.
 
 ---
 
