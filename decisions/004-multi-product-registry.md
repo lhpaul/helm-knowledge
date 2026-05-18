@@ -24,12 +24,13 @@ reads this file to discover all registered Product knowledge repositories.
 ```yaml
 # $HELM_KNOWLEDGE_REPO_PATH/.helm/products.yaml
 products:
-  - path: .                              # this repo (relative to parent dir)
-  - path: ../helm-playground-knowledge  # sibling repo
+  - path: .                              # this repo itself
+  - path: ../helm-playground-knowledge  # sibling repo (one level up, then into sibling)
 ```
 
-Each `path` is resolved **relative to `dirname(HELM_KNOWLEDGE_REPO_PATH)`** — the directory
-that contains all knowledge repos (the "sibling layout"). Absolute paths are also accepted.
+Each `path` is resolved **relative to `HELM_KNOWLEDGE_REPO_PATH` itself** (the knowledge repo
+root). `path: "."` resolves to the knowledge repo; `path: "../other"` resolves to a sibling
+directory of the knowledge repo. Absolute paths are also accepted.
 
 ### Discovery algorithm (in `getProductRegistry()`)
 
@@ -80,11 +81,11 @@ list via PR.
 
 ### Negative / limitations
 
-**Sibling layout assumption:** Both repos must be cloned into the same parent directory. If
-`helm-knowledge` is at `/a/helm-knowledge` and `helm-playground-knowledge` is at `/b/helm-playground-knowledge`,
-the relative path `../helm-playground-knowledge` won't resolve. Teams with non-standard layouts
-must use absolute paths in `products.yaml` (those paths won't be portable between machines).
-Future fix: support git URLs with clone-on-demand (v2+).
+**Sibling layout assumption:** Paths in `products.yaml` are relative to the knowledge repo
+root (`HELM_KNOWLEDGE_REPO_PATH`). The path `../helm-playground-knowledge` therefore resolves
+to a directory that is a sibling of `helm-knowledge` — both repos must be cloned into the same
+parent directory. If repos are in different locations, absolute paths must be used (those won't
+be portable between machines). Future fix: support git URLs with clone-on-demand (v2+).
 
 **externalId collision (Known Limitation):** The Item Store uses `data/items/{externalId}.json`
 (flat, no product namespace). Because each GitHub Project has its own independent issue number
