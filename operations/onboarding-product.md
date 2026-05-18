@@ -164,6 +164,38 @@ Merge after review.
 
 ---
 
+## Step 4.5 — Hydrate existing items (if any)
+
+If the GitHub Project already has items (e.g., when onboarding a product with pre-existing
+work), use the sync command to import them into Helm before starting the server:
+
+```bash
+# Run from the helm repo root
+pnpm --filter @helm/api sync <product-slug>
+```
+
+**Requirements:**
+- `GITHUB_TOKEN` must be set with read access to the GitHub Project.
+- `HELM_KNOWLEDGE_REPO_PATH` must point to the primary knowledge repo (already set for normal server operation).
+- `HELM_DATA_DIR` is optional; defaults to `./data` relative to `apps/api/`.
+
+**Example output:**
+```
+[sync] Starting sync for product "helm-playground"…
+[sync] product=helm-playground item=issue_1 title="Hello world endpoint" stage=discovery
+[sync] product=helm-playground item=issue_2 title="CI pipeline" stage=spec-ready
+Synced 2 items in 820ms
+```
+
+**Notes:**
+- Idempotent: running the command multiple times is safe and produces consistent results.
+- Supports both GitHub org accounts and personal (user) accounts.
+- If the product's `issue_tracker.provider` is not `github_projects`, the command exits gracefully with no action.
+- Items without a "Helm Stage" field value are created at the initial stage (`discovery`).
+- This command does **not** replace the webhook flow — it is intended for initial hydration and local development. Webhooks remain the primary mechanism for runtime item updates.
+
+---
+
 ## Step 5 — Restart the Helm server
 
 The product registry is cached in memory. Restart the server to pick up the new entry:
