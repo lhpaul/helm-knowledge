@@ -333,4 +333,4 @@ curl http://localhost:4000/api/products/<product-slug>/items
 | "Invalid product.yaml" error | Schema validation failure | Check all required fields are present and correctly typed |
 | `Could not resolve to an Organization with the login of 'X'` | Running a Helm version prior to Session 7.5 against a personal-account project | Update Helm to Session 7.5+, which uses `repositoryOwner()` instead of `organization()` |
 | `Synced 0 items` after a successful sync | Items in the GitHub Project are Draft Issues, not real Issues | Convert drafts to Issues (Step 3.5 Option B), then re-run sync |
-| `API rate limit already exceeded` | Too many GraphQL requests in a short window | Wait for the reset window: `gh api rate_limit --jq '"resets at " + (.resources.graphql.reset | strftime("%H:%M:%S"))'` |
+| `API rate limit already exceeded` | Too many GraphQL requests in a short window | Wait for the reset window: <code>gh api rate_limit --jq '"resets at " + (.resources.graphql.reset &#124; strftime("%H:%M:%S"))'</code> |
