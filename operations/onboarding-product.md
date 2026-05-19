@@ -5,6 +5,23 @@ Follow these steps in order. Estimated time: 30–60 minutes.
 
 ---
 
+## Account types — read this first
+
+The onboarding procedure is the same for both account types, but **real-time sync
+behaviour differs**:
+
+| Account type | Example | Webhook support | Real-time sync |
+|---|---|---|---|
+| **Organization-owned Project** | `acme-corp/mome-platform` | ✅ Configure org webhook → Helm receives item events automatically | Yes — items update in Helm as soon as they change in GitHub |
+| **Personal-account Project** | `lhpaul/helm-playground` | ❌ GitHub does not expose `projects_v2_item` webhooks for personal accounts | No — run `pnpm --filter @helm/api sync <slug>` manually after changes |
+
+> **For personal accounts:** skip the webhook configuration steps. Use the sync
+> command (Step 4.5) whenever you want to pull the latest item state from GitHub.
+> This is the expected workflow for local development; production deploys should
+> use org-owned Projects.
+
+---
+
 ## Prerequisites
 
 - A GitHub org or personal account to host the new product's repos.
@@ -57,7 +74,7 @@ product:
 
 issue_tracker:
   provider: github_projects
-  org: <github-org>
+  org: <github-org-or-username>
   project_number: <n>          # the number from the GitHub Project URL
   custom_field_name: Helm Stage
 
@@ -119,21 +136,92 @@ git push -u origin main
 
 ---
 
-## Step 3 — Set up the GitHub Project custom field
+## Step 3 — Create the "Helm Stage" custom field in the GitHub Project
 
-Run `ensureSubStages` to create the "Helm Stage" single-select field in the GitHub Project:
+Helm tracks workflow stages via a **single-select custom field** called "Helm Stage"
+on the GitHub Project. This field must be created with the 9 canonical stage names
+(exact spelling matters — the adapter maps option names to workflow stages).
+
+> ⚠️ **If you copied an existing Project with `gh project copy`:** custom single-select
+> fields are **not** cloned by GitHub. You must create "Helm Stage" manually even if
+> the source project had it.
+
+Create the field via CLI:
 
 ```bash
-curl -X POST http://localhost:4000/api/admin/ensure-substages \
-  -H "Content-Type: application/json" \
-  -d '{ "productSlug": "<product-slug>" }'
+gh project field-create <project-number> \
+  --owner <github-org-or-username> \
+  --name "Helm Stage" \
+  --data-type SINGLE_SELECT \
+  --single-select-options "discovery,spec-draft,spec-ready,plan-draft,plan-ready,in-development,code-review,remediation,released"
 ```
 
-> **Note:** The `/api/admin/ensure-substages` endpoint will be added in a future session.
-> For now, manually create the "Helm Stage" single-select field in the GitHub Project UI
-> with these 9 options (exact spelling matters):
-> `discovery`, `spec-draft`, `spec-ready`, `plan-draft`, `plan-ready`,
-> `in-development`, `code-review`, `remediation`, `released`
+Verify the field was created:
+
+```bash
+gh project field-list <project-number> \
+  --owner <github-org-or-username> \
+  --format json \
+  | jq '.fields[] | select(.name=="Helm Stage")'
+```
+
+Expected output: a JSON object with `id`, `name`, and `options`. If the result is
+empty, the field was not created — retry the `field-create` command.
+
+> **Alternative — GitHub UI:** Settings → Fields → New field → Single select. Add
+> each stage name as an option in the exact order listed above.
+
+---
+
+## Step 3.5 — Add items as real Issues (not Draft Issues)
+
+Helm's adapter only processes **real Issues** (`__typename: 'Issue'` in the GraphQL
+response). **Draft Issues** (created via the Project UI "Add item" without a
+repository) are silently skipped during sync and will not appear in Helm.
+
+### Option A — Recommended: create Issue first, then add to Project
+
+```bash
+# 1. Create a real GitHub Issue in the code repo
+gh issue create \
+  --repo <org>/<repo> \
+  --title "Hello world endpoint" \
+  --body "Initial implementation of the health check endpoint."
+
+# 2. Copy the issue URL from the output, then add it to the Project
+gh project item-add <project-number> \
+  --owner <github-org-or-username> \
+  --url https://github.com/<org>/<repo>/issues/<issue-number>
+```
+
+### Option B — Convert existing Draft Issues to real Issues
+
+If you already have Draft Issues in the Project, convert them before syncing.
+
+**GitHub UI:** open each item → "Convert to issue" → select repository.
+
+**CLI (GraphQL mutation):**
+
+```bash
+# 1. Find draft item node IDs
+gh project item-list <project-number> --owner <owner> --format json \
+  | jq '.items[] | select(.type=="DRAFT_ISSUE") | {id, title}'
+
+# 2. Get the repository node ID
+gh api graphql -f query='{ repository(owner:"<org>", name:"<repo>") { id } }' \
+  --jq '.data.repository.id'
+
+# 3. Convert each draft
+gh api graphql -f query='
+  mutation {
+    convertProjectV2DraftIssueItemToIssue(input: {
+      itemId: "<draft-item-node-id>",
+      repositoryId: "<repository-node-id>"
+    }) {
+      item { id }
+    }
+  }'
+```
 
 ---
 
@@ -164,10 +252,11 @@ Merge after review.
 
 ---
 
-## Step 4.5 — Hydrate existing items (if any)
+## Step 4.5 — Hydrate existing items
 
-If the GitHub Project already has items (e.g., when onboarding a product with pre-existing
-work), use the sync command to import them into Helm before starting the server:
+Use the sync command to import items from the GitHub Project into Helm. This step is
+**required for personal-account Projects** (no webhook support) and optional for org
+Projects with pre-existing items.
 
 ```bash
 # Run from the helm repo root
@@ -176,11 +265,11 @@ pnpm --filter @helm/api sync <product-slug>
 
 **Requirements:**
 - `GITHUB_TOKEN` must be set with read access to the GitHub Project.
-- `HELM_KNOWLEDGE_REPO_PATH` must point to the primary knowledge repo (already set for normal server operation).
+- `HELM_KNOWLEDGE_REPO_PATH` must point to the primary knowledge repo.
 - `HELM_DATA_DIR` is optional; defaults to `./data` relative to `apps/api/`.
 
 **Example output:**
-```
+```text
 [sync] Starting sync for product "helm-playground"…
 [sync] product=helm-playground item=issue_1 title="Hello world endpoint" stage=discovery
 [sync] product=helm-playground item=issue_2 title="CI pipeline" stage=spec-ready
@@ -188,11 +277,12 @@ Synced 2 items in 820ms
 ```
 
 **Notes:**
-- Idempotent: running the command multiple times is safe and produces consistent results.
-- Supports both GitHub org accounts and personal (user) accounts.
-- If the product's `issue_tracker.provider` is not `github_projects`, the command exits gracefully with no action.
-- Items without a "Helm Stage" field value are created at the initial stage (`discovery`).
-- This command does **not** replace the webhook flow — it is intended for initial hydration and local development. Webhooks remain the primary mechanism for runtime item updates.
+- Idempotent: running multiple times is safe. Items with unchanged stage are skipped;
+  items with a changed stage get a new transition event appended.
+- Only real Issues are synced — Draft Issues are silently skipped (see Step 3.5).
+- Items without a "Helm Stage" value are created at the initial stage (`discovery`).
+- For org Projects, this is for initial hydration only — webhooks handle ongoing updates.
+- For personal-account Projects, re-run this command whenever items change in GitHub.
 
 ---
 
@@ -216,7 +306,7 @@ curl http://localhost:4000/api/products | jq '.[].product.slug'
 # Should return the product config
 curl http://localhost:4000/api/products/<product-slug> | jq '.product'
 
-# Should return an empty array (no items yet)
+# Should return the synced items (or empty array if no items yet)
 curl http://localhost:4000/api/products/<product-slug>/items
 ```
 
@@ -225,31 +315,22 @@ curl http://localhost:4000/api/products/<product-slug>/items
 ## Step 7 — Create seed items (optional, primary product only)
 
 > **Warning:** `POST /api/items` currently writes items for the **primary product**
-> (`getProductConfig()` slug), not the newly-onboarded product. Using this step for
-> a newly-registered product will place items under the wrong `productSlug` and produce
-> misleading validation results. Multi-product item creation will be added in Session 8.
+> (`getProductConfig()` slug), not the newly-onboarded product. Multi-product item
+> creation will be added in Session 8.
 >
-> To verify the new product is registered, skip to the `curl` commands in Step 6 above
-> (`GET /api/products` and `GET /api/products/<product-slug>/items`).
-
-If you specifically want to seed the **primary** product for other reasons:
-
-```bash
-curl -X POST http://localhost:4000/api/items \
-  -H "Content-Type: application/json" \
-  -d '{
-    "externalId": "issue_1",
-    "triggeredBy": "human:<your-github-handle>"
-  }'
-```
+> To add items to a newly-registered product: create Issues in GitHub (Step 3.5),
+> then run `pnpm --filter @helm/api sync <slug>`.
 
 ---
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
-|---------|-------------|-----|
+|---|---|---|
 | `GET /api/products` only returns one product | `products.yaml` not found or empty | Check the file exists at `$HELM_KNOWLEDGE_REPO_PATH/.helm/products.yaml` |
 | New product returns 404 | Slug in products.yaml path doesn't match `product.slug` in its `product.yaml` | Verify the slug in both files matches |
-| "Cannot read file" error on startup | Sibling layout broken — repos not in same parent dir | Check `dirname($HELM_KNOWLEDGE_REPO_PATH)/<product>-knowledge/.helm/product.yaml` exists |
-| "Invalid product.yaml" error | Schema validation failure | Run the product.yaml through the Helm validator (v1 TODO) or check all required fields |
+| "Cannot read file" error on startup | Sibling layout broken — repos not in same parent dir | Check `$HELM_KNOWLEDGE_REPO_PATH/../<product>-knowledge/.helm/product.yaml` exists |
+| "Invalid product.yaml" error | Schema validation failure | Check all required fields are present and correctly typed |
+| `Could not resolve to an Organization with the login of 'X'` | Running a Helm version prior to Session 7.5 against a personal-account project | Update Helm to Session 7.5+, which uses `repositoryOwner()` instead of `organization()` |
+| `Synced 0 items` after a successful sync | Items in the GitHub Project are Draft Issues, not real Issues | Convert drafts to Issues (Step 3.5 Option B), then re-run sync |
+| `API rate limit already exceeded` | Too many GraphQL requests in a short window | Wait for the reset window: <code>gh api rate_limit --jq '"resets at " + (.resources.graphql.reset &#124; strftime("%H:%M:%S"))'</code> |
