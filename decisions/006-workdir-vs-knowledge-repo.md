@@ -27,7 +27,7 @@ Esta distinción se hizo explícita al final de Sesión 9 cuando el smoke test d
 2. Knowledge repos **nunca son escritos directamente por agentes**. Solo se escriben via git PR.
 3. Post-completion handlers de specialists son responsables del "publish step": commit + push + abrir PR contra el knowledge repo correspondiente.
 4. Esos handlers viven en el **orchestrator de Helm** (p. ej. `handleSpecWriterResult`), no dentro del proceso del agente: se ejecutan después de `AgentSession.wait()`, con permisos de git/PR en nombre de Helm, y los mantiene el equipo del orchestrator (ver ADR-005).
-5. El workdir puede ser limpiado entre runs sin pérdida de información (todo lo importante ya está en knowledge repo o en `data/items/`).
+5. Tras el publish step (Sesión 10-11), el workdir puede limpiarse entre runs sin pérdida: lo durable vive en knowledge repo o en `data/items/`. Hasta entonces, el workdir conserva artefactos no publicados y solo debe limpiarse a propósito (debug), no como rutina automática.
 
 ## Alternativas consideradas
 
@@ -40,7 +40,7 @@ Esta distinción se hizo explícita al final de Sesión 9 cuando el smoke test d
 **Positivas**:
 - Boundary de ownership clara entre Helm (operacional) y humanos (revisión).
 - Knowledge repo siempre contiene contenido revisado.
-- Workdir es seguro de limpiar — no es source of truth.
+- Tras publish, el workdir es seguro de limpiar — no es source of truth.
 - El "publish step" es un punto natural para insertar validación, política, y filtrado de contenido sensible.
 
 **Negativas**:
@@ -50,7 +50,7 @@ Esta distinción se hizo explícita al final de Sesión 9 cuando el smoke test d
 
 ## Implementación
 
-- **Sesión 9** (cerrada): implementación del workdir con `MockAgentRuntime`. Specialists post-completion handlers verifican el artefacto en workdir y transitan el stage. No hay publish step todavía.
+- **Sesión 9** (cerrada): implementación del workdir con `MockAgentRuntime`. Specialists post-completion handlers verifican el artefacto en workdir y transitan el stage. No hay publish step todavía — la regla 5 de limpieza sin pérdida **no aplica** hasta Sesión 10-11.
 - **Sesión 10-11**: implementación del publish step. El `ClaudeCodeRuntime` real va a producir specs/plans en su workdir; el handler post-completion va a hacer git commit + push + abrir PR contra `<product>-knowledge`. La transición del item solo se aplica después que el PR esté mergeado (o con flag opcional `optimistic: true` para entornos sin gate humano — **detalle TBD en Sesión 10-11**: scope per-environment, riesgo de merge sin review humano, validaciones mínimas aun en modo optimistic: tests/lint del artefacto antes del publish).
 
 ## Notas
