@@ -136,6 +136,74 @@ git push -u origin main
 
 ---
 
+## Step 2.5 — Create the knowledge repo folders
+
+Create the standard folders and seed docs expected by Helm specialists:
+
+```bash
+cd ~/projects/<product-slug>-knowledge
+mkdir -p \
+  discovery specs plans decisions learnings \
+  wiki/architecture wiki/runbooks wiki/glossary wiki/onboarding \
+  pulse-reports retrospectives ux-options
+touch specs/.gitkeep plans/.gitkeep ux-options/.gitkeep
+```
+
+Add a `strategy.md` at the repo root. Start from this minimal template:
+
+```markdown
+# <Product Name> Strategy
+
+- **Status**: Active
+- **Last updated**: YYYY-MM-DD
+
+## Target problem
+
+<Who has what problem?>
+
+## Our approach
+
+<What is the product's guiding approach?>
+
+## Primary users
+
+<Who is this for?>
+
+## Active tracks
+
+- <current track 1>
+- <current track 2>
+
+## Key metrics
+
+- <metric 1>
+- <metric 2>
+
+## Not working on yet
+
+- <explicit non-goal>
+```
+
+For the rest of the folders, copy or adapt the README guidance from the Helm
+knowledge repo:
+
+- `discovery/README.md`
+- `specs/README.md`
+- `plans/README.md`
+- `learnings/README.md`
+- `pulse-reports/README.md`
+
+Commit and push the knowledge skeleton:
+
+```bash
+git add strategy.md discovery specs plans decisions learnings wiki \
+  pulse-reports retrospectives ux-options
+git commit -m "docs: add Helm knowledge repo skeleton"
+git push
+```
+
+---
+
 ## Step 3 — Create the "Helm Stage" custom field in the GitHub Project
 
 Helm tracks workflow stages via a **single-select custom field** called "Helm Stage"
