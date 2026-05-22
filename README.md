@@ -38,8 +38,8 @@ helm-knowledge/
   entries before touching code.
 - Reviewers can add or request new entries under `learnings/` when a finding
   reveals a reusable pattern.
-- Workflow Pulse writes periodic reports under `pulse-reports/` using operational
-  data from Helm's `data/` directory.
+- Workflow Pulse produces periodic reports from Helm's `data/` directory and
+  publishes them to `pulse-reports/` via the standard git PR publish step.
 
 See [ADR-007](decisions/007-knowledge-compounding-contract.md) for the decision
 behind this structure.

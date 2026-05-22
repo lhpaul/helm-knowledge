@@ -188,6 +188,8 @@ For the rest of the folders, copy or adapt the README guidance from the Helm
 knowledge repo:
 
 - `discovery/README.md`
+- `specs/README.md`
+- `plans/README.md`
 - `learnings/README.md`
 - `pulse-reports/README.md`
 

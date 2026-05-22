@@ -44,7 +44,9 @@ Specialists should read from these surfaces as follows:
 - Implementer reads the approved plan plus relevant `learnings/` and `wiki/`.
 - Reviewers may request new `learnings/` entries when findings reveal reusable
   patterns.
-- Workflow Pulse writes reports to `pulse-reports/` from operational data.
+- Workflow Pulse generates reports from operational data and publishes them to
+  `pulse-reports/` through the orchestrator git PR publish step. Agents do not
+  write directly to the Product knowledge repo.
 
 The v0 persistence rule remains unchanged: no local database is required for
 these artifacts. Markdown in git is the source of truth. Helm may later build a
