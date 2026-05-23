@@ -1,0 +1,97 @@
+rules:
+  - id: "new-adrs-must-be-accepted"
+    name: "Mark new ADRs as Accepted"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Set the Status of newly added ADRs to Accepted at PR time because ADRs in this repository record decisions already made during planning."
+    llm:
+      prompt: "Set the Status of newly added ADRs to Accepted at PR time because ADRs in this repository record decisions already made during planning."
+  - id: "follow-adr-file-and-metadata-format"
+    name: "Use ADR naming and metadata format"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Create ADR files under decisions/ using NNN-kebab-case-title.md with top metadata lines for Status and Date, and never reuse ADR numbers."
+    llm:
+      prompt: "Create ADR files under decisions/ using NNN-kebab-case-title.md with top metadata lines for Status and Date, and never reuse ADR numbers."
+  - id: "include-required-adr-sections"
+    name: "Include standard ADR sections"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "ADRs must include Context, Decision, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
+    llm:
+      prompt: "ADRs must include Context, Decision, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
+  - id: "scope-doc-claims-to-current-state"
+    name: "Scope documentation claims precisely"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When docs describe behavior or cleanup timing, avoid absolute statements and condition claims to the current implementation state to prevent contradictions."
+    llm:
+      prompt: "When docs describe behavior or cleanup timing, avoid absolute statements and condition claims to the current implementation state to prevent contradictions."
+  - id: "describe-race-scenarios-and-mitigation-explicitly"
+    name: "Document concurrency risks explicitly"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When documenting concurrent workflows, state the exact conflict scenario and the specific mitigation strategy rather than vague race-condition language."
+    llm:
+      prompt: "When documenting concurrent workflows, state the exact conflict scenario and the specific mitigation strategy rather than vague race-condition language."
+  - id: "state-risks-without-minimizing-language"
+    name: "Use accurate risk wording"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Document known limitations with realistic likelihood and impact, avoiding minimizing terms that understate plausible collision or overwrite risks."
+    llm:
+      prompt: "Document known limitations with realistic likelihood and impact, avoiding minimizing terms that understate plausible collision or overwrite risks."
+  - id: "onboarding-steps-must-match-real-api-behavior"
+    name: "Keep onboarding steps API-accurate"
+    type: llm
+    severity: warning
+    category: "security"
+    message: "Onboarding documentation must only include validation and seed steps that match current API behavior for the intended product context, or explicitly caveat unsafe paths."
+    llm:
+      prompt: "Onboarding documentation must only include validation and seed steps that match current API behavior for the intended product context, or explicitly caveat unsafe paths."
+  - id: "markdown-fenced-blocks-must-specify-language"
+    name: "Add language tags to fenced code blocks"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "Every fenced code block in Markdown must include an explicit language identifier such as bash, yaml, markdown, or text."
+    llm:
+      prompt: "Every fenced code block in Markdown must include an explicit language identifier such as bash, yaml, markdown, or text."
+  - id: "preserve-markdown-table-column-integrity"
+    name: "Keep Markdown table cells valid"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "In Markdown tables, escape or wrap special characters in inline code (such as pipes) so table column structure remains valid."
+    llm:
+      prompt: "In Markdown tables, escape or wrap special characters in inline code (such as pipes) so table column structure remains valid."
+  - id: "use-cross-platform-shell-commands-in-docs"
+    name: "Use cross-platform shell commands"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Commands documented for contributors must work on both macOS and Linux, or provide clearly documented alternatives when platform-specific flags are required."
+    llm:
+      prompt: "Commands documented for contributors must work on both macOS and Linux, or provide clearly documented alternatives when platform-specific flags are required."
+  - id: "use-exact-canonical-path-and-identifier-strings"
+    name: "Use exact canonical literals"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Documentation examples must preserve exact canonical path patterns and identifier formats (for example .helm paths, product slug format, and workflow stage labels) without typos."
+    llm:
+      prompt: "Documentation examples must preserve exact canonical path patterns and identifier formats (for example .helm paths, product slug format, and workflow stage labels) without typos."
+  - id: "onboarding-runbooks-require-verification-commands"
+    name: "Include executable verification in runbooks"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
+    llm:
+      prompt: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
