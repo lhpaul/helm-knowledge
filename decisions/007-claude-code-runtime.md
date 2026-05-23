@@ -66,35 +66,42 @@ interactive mode is deferred to a future session and noted in the interface cont
 
 ---
 
-### 3. Success determination: `permission_denials`, not `result.subtype`
+### 3. Success determination: artifact existence, not `permission_denials`
 
-**Critical finding from fixtures:**
+**Original fixture analysis (pre-smoke-test):**
 
-The `result` line (last line of stdout) has identical shape in both the success and
-permission-denied transcripts:
+Before the first real end-to-end run, fixture analysis suggested using
+`permission_denials.length === 0` as a runtime-level success signal, because both the
+success and permission-denied transcripts show `subtype:"success"` and `is_error:false`:
 
 ```jsonl
-// write-success.jsonl — actual success
+// write-success.jsonl
 {"type":"result","subtype":"success","is_error":false,...,"permission_denials":[],...}
 
-// permission-denied.jsonl — permission blocked (agent could not write the file)
+// permission-denied.jsonl (captured with permissionMode:default)
 {"type":"result","subtype":"success","is_error":false,...,"permission_denials":[{...}],...}
 ```
 
-Both show `subtype: "success"` and `is_error: false`. **These fields cannot be used
-to determine whether the specialist's task actually succeeded.**
+**Correction from Session 10 smoke test:**
 
-**Decision:** success requires all of:
+The first real end-to-end dispatch (Session 10, cost $0.0619) refuted the
+`permission_denials` rule. The agent received a denial on one tool call yet completed
+the task by routing around it — the spec file was written successfully and the
+`permission_denials` array was non-empty. Treating non-empty `permission_denials` as
+`status:'error'` would have reported a false failure.
 
-1. `result.is_error === false` — no API-level error
-2. `result.permission_denials.length === 0` — no tool calls were blocked
-3. The output artifact exists on disk — verified by `handleSpecWriterResult` via `fs.access(specPath)`
+**Decision (revised):**
 
-The third check was already in place from Session 9. This ADR adds the
-`permission_denials` check as an additional layer in `ClaudeCodeRuntime`'s result
-handler, so the runtime itself reports `status: 'error'` when permissions are denied
-rather than returning a misleading `'done'` that causes `handleSpecWriterResult` to
-fail on the filesystem check.
+| Signal | Layer | Meaning |
+|--------|-------|---------|
+| `result.is_error === true` | `ClaudeCodeRuntime` | Hard protocol/API error — always `status:'error'` |
+| `result.permission_denials.length > 0` | `ClaudeCodeRuntime` | Diagnostic only — appended to `finalOutput` as `[note] N permission denial(s)...`; does **not** affect `status` |
+| Artifact exists on disk | `handleSpecWriterResult` | **Ground truth** — `fs.access(specPath)` is the only success criterion for the spec-writer task |
+
+The specialist handler already checked artifact existence (Session 9). The runtime's
+role is limited to reporting hard protocol failures (`is_error`) and surfacing
+diagnostic information (`permission_denials` → `finalOutput`). Whether the task
+_succeeded_ is the specialist's concern, not the runtime's.
 
 ---
 
@@ -115,7 +122,10 @@ computed by the Claude Code CLI after all turns. We use this value directly as
 - `ClaudeCodeRuntime` tests run in < 20 ms (fixture-backed, no network calls, no
   real subprocess).
 - The `acceptEdits` permission mode is auditable: the `permission_denials` array in
-  the result reveals exactly which tool calls were blocked if the flag is misconfigured.
+  the result is surfaced in `finalOutput` so operators can diagnose misconfigured
+  permissions without the runtime crying wolf on tasks that still completed.
+- The smoke test (Session 10) confirmed a real end-to-end dispatch: cost $0.0619,
+  transition `discovery → spec-draft`, spec file written on disk.
 
 **Negative / trade-offs:**
 - One-shot mode means the agent cannot be steered after the initial prompt. Complex
@@ -127,6 +137,42 @@ computed by the Claude Code CLI after all turns. We use this value directly as
 - `--permission-mode acceptEdits` does not prevent the agent from reading arbitrary
   files in the workdir. This is acceptable because the workdir is scoped to a single
   item (`data/worktrees/{slug}/{externalId}`).
+- **Synchronous dispatch blocks the HTTP connection** for the full agent run duration.
+  Bun's default `idleTimeout` (10 s) was raised to 255 s as a stopgap. Agent runs that
+  exceed 255 s will still time out the connection. Proper fix: async dispatch with a
+  job id + poll or WebSocket; tracked for Session 11.
+- **Prompt does not inject product context.** In the Session 10 smoke test the agent
+  confused "Helm Playground" (the product) with Helm (the Kubernetes package manager)
+  and wrote a spec for the wrong domain. The spec-writer prompt needs to inject product
+  context (product YAML, README, AGENT.md from the knowledge repo) before writing.
+  Tracked as a follow-up for a future session — see "Follow-ups" below.
+
+---
+
+## Follow-ups
+
+### Session 11: async dispatch (job id + poll/WebSocket)
+
+The current synchronous dispatch holds the HTTP connection open for the entire agent
+run. `idleTimeout: 255` is a stopgap; runs exceeding 255 s will disconnect. The
+correct architecture:
+
+1. `POST /dispatch` enqueues a job and immediately returns `202 Accepted` with a job id.
+2. Client polls `GET /jobs/:id` (or subscribes via WebSocket) for status.
+3. The agent runs in a background worker, no HTTP timeout pressure.
+
+### Session 11+: inject product context into the spec-writer prompt
+
+The Session 10 smoke test revealed that the current prompt lacks product context. The
+agent confused "Helm Playground" with the Helm Kubernetes tool. Before writing a spec
+the prompt should inject:
+
+- `product.yaml` — product slug, name, workflow
+- `README.md` from the product's knowledge repo
+- `AGENT.md` from the knowledge repo (if present) — domain-specific guidance
+
+This requires the spec-writer to load files from the knowledge repo checkout before
+composing the Claude Code prompt.
 
 ---
 
