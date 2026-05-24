@@ -67,17 +67,14 @@ The `fetchProductContext(product, token, fetchFn?)` function accepts an injectab
 
 **After** the spec file is verified in the workdir, `publishSpecToPR()`:
 
-1. **Ensures the knowledge repo is available locally** at
-   `data/knowledge-repos/{productSlug}/`:
-   - If not yet cloned → `git clone` with a token-embedded HTTPS URL
-     (`https://x-access-token:{token}@github.com/...`).
-   - If already cloned → `git fetch origin && git checkout {defaultBranch} &&
-     git reset --hard origin/{defaultBranch}`.
+1. **Clones the knowledge repo** to a fresh isolated temporary directory
+   (see §C — Publish isolation).
 2. **Creates or resets the spec branch**: `git checkout -B helm/spec/{externalId}
    origin/{defaultBranch}`.
 3. **Copies the spec file** into `specs/{externalId}.md` inside the clone.
 4. **Commits** with author/committer set to `helm-bot`.
-5. **Force-pushes** the branch using the token-embedded URL.
+5. **Force-pushes** the branch via token-authenticated HTTPS (token injected as
+   `GIT_HTTP_EXTRAHEADER`, never embedded in the remote URL).
 6. **Opens a PR** via `gh pr create` — or reuses an existing open PR for the same
    branch (idempotency: `gh pr list --head helm/spec/{externalId} --state open`
    before creating).
@@ -90,14 +87,51 @@ A publish failure blocks the transition — the stage change should reflect the 
 that a reviewable artifact exists.
 
 **Injectable runners:** `RunGit` and `RunGh` are function-type parameters with
-real defaults (`/usr/bin/git` and `/opt/homebrew/bin/gh`).  Tests inject mocks that
-operate on the real filesystem without spawning child processes.
+real defaults (`git` / `gh` resolved from `PATH`).  Tests inject mocks that operate
+on the real filesystem without spawning child processes.
 
-### C — Knowledge repo local path
+### C — Publish isolation: temp-clone-per-call
 
-`DataPaths.knowledgeRepos` → `data/knowledge-repos/` is pre-created by
-`ensureDataDir()`.  Each product gets its own subdirectory:
-`data/knowledge-repos/{productSlug}/`.
+**Problem — race condition across items of the same product.**
+
+An earlier design cloned the knowledge repo once per product to
+`data/knowledge-repos/{productSlug}/` and reused that checkout for every publish.
+When two items of the same product were dispatched concurrently, their `publishSpecToPR`
+calls shared a single git working tree.  The git operations
+(`checkout -B`, `add`, `commit`, `push`) could interleave:
+
+- Item A's commit could silently include item B's staged file.
+- A force-push from item B could overwrite item A's branch with incorrect content.
+- The resulting PRs would contain mixed or missing spec changes.
+
+The per-item path guard (`knowledge-repos/{productSlug}/{externalId}/`) added at the
+dispatcher call-site narrowed the window to a single item, but `publishSpecToPR` itself
+had no isolation guarantee — the race was still possible if the same item was
+re-dispatched concurrently.
+
+**Decision: each `publishSpecToPR` call clones to its own fresh temp directory.**
+
+```
+tmpdir()/helm-publish-{externalId}-{uuid}/   ← isolated per call
+```
+
+Alternatives considered:
+
+| Option | Verdict |
+|--------|---------|
+| In-memory mutex keyed by product | Rejected — only safe within a single process; a future multi-worker deployment would reintroduce the race. |
+| `git worktree add` against a cached base clone | Attractive for clone efficiency but requires coordinating access to the shared base clone during `git fetch`. Adds complexity with limited benefit given current dispatch volume. |
+| **Temp clone per call** (chosen) | Simple, correct, single-process or multi-process safe. Each call is fully self-contained. The isolation directory is always removed in `finally` regardless of success or failure. |
+
+**API impact:**
+
+- `knowledgeRepoLocalPath` has been **removed** from `PublishSpecOpts` and
+  `SpecPublishOptions`.  The publish function manages its own working directory
+  internally; callers no longer need to provide or manage one.
+- `DispatchOptions.dataRoot` is retained for future specialists but is no longer
+  required by the spec-writer publish step.
+- The publish step is triggered whenever `githubToken` is present (the `dataRoot`
+  guard was dropped along with `knowledgeRepoLocalPath`).
 
 ---
 
@@ -109,18 +143,22 @@ operate on the real filesystem without spawning child processes.
 - Stage transition is gated on a real, reviewable artifact.
 - Agent prompt includes product-specific context → better spec quality.
 - Publish step is idempotent: re-dispatching the same item doesn't create duplicate PRs.
+- Concurrent publishes for any combination of items are safe — no shared state.
 - Full test coverage without network calls: `fetchFn` and `RunGit`/`RunGh` are injectable.
+- Auth token never appears in remote URLs or git error messages (via `GIT_HTTP_EXTRAHEADER`).
 
 ### Negative / Trade-offs
 
 - `GITHUB_TOKEN` must be present at dispatch time for both context fetch and publish.
   If the token is absent, context fetch is skipped (non-fatal) and publish is skipped
   (no PR is created, item still transitions to `spec-draft`).
-- The knowledge repo clone is **not cleaned up** between runs.  Stale branches may
-  accumulate in the local clone; the `git checkout -B ... origin/{defaultBranch}`
-  ensures the working tree is always reset to the default branch before branching.
-- `gh` binary path is hardcoded to `/opt/homebrew/bin/gh` in the default runner.
-  This works on macOS with Homebrew but may need adjustment for Linux deployments.
+- **Full clone on every publish.**  Each call clones the entire knowledge repo from
+  GitHub rather than reusing a cached local copy.  For large knowledge repos this adds
+  latency per dispatch.  Mitigation: knowledge repos tend to be small (docs only);
+  a `git clone --depth 1` optimisation is deferred to a future session.
+- Temp directories accumulate on unexpected process kill (the `finally` block is
+  bypassed by `SIGKILL`).  They live under `os.tmpdir()` with a `helm-publish-`
+  prefix and are cleaned up by OS temp-dir housekeeping.
 
 ### Known limitations
 
@@ -131,3 +169,7 @@ operate on the real filesystem without spawning child processes.
   access to the code repo) and the spec publish (write access to the knowledge repo).
   If the two repos belong to different organizations, a single token may not have
   sufficient scope.
+- **SSH knowledge repo URLs are not supported.**  `GIT_HTTP_EXTRAHEADER` only applies
+  to HTTPS transport.  Configuring a `git@github.com:...` or `ssh://...` URL for the
+  knowledge repo causes an early validation error with a message directing the operator
+  to use an HTTPS URL instead.
