@@ -142,3 +142,14 @@ type Job = {
 - The `runDispatchJob` fire-and-forget pattern means the background task shares the
   process heap; a large agent response cannot be streamed incrementally to the client.
   This is acceptable until a streaming specialist is introduced.
+- **Known limitation — single-process concurrency guard.** `createJobIfNoRunning`
+  uses an in-memory `_inflightKeys` Set with a synchronous check-and-set. This is
+  correct within a single process: Bun's single-threaded event loop guarantees that
+  the `has`/`add` pair cannot be interleaved by another coroutine. However, the lock
+  does not coordinate across OS processes. In a horizontally-scaled deployment (multiple
+  API instances behind a load balancer), two processes could independently pass the
+  check and create concurrent jobs for the same item, writing into the same workdir
+  simultaneously. This is acceptable for v0 (single-process deployment). If Helm is
+  ever scaled horizontally, the guard must be replaced with a cross-process mechanism:
+  an advisory lock file on the shared filesystem, an atomic compare-and-swap in the
+  job store, or delegation to an external coordination layer.
