@@ -1,28 +1,36 @@
 rules:
-  - id: "adr-status-accepted-at-merge-time"
-    name: "Keep ADR status as Accepted"
+  - id: "adr-status-must-match-lifecycle"
+    name: "ADR status must match documented lifecycle"
     type: llm
     severity: warning
     category: "patterns"
-    message: "Set ADR documents in `decisions/` to status `Accepted` when opened in PRs, since they record already-made planning decisions rather than proposals."
+    message: "ADR Status must be one of the values in decisions/README.md: Proposed, Accepted, Deprecated, or Superseded by ADR-NNN. New ADRs awaiting review may use Proposed; ADRs recording finalized planning decisions should use Accepted."
     llm:
-      prompt: "Set ADR documents in `decisions/` to status `Accepted` when opened in PRs, since they record already-made planning decisions rather than proposals."
+      prompt: "ADR Status must be one of the values in decisions/README.md: Proposed, Accepted, Deprecated, or Superseded by ADR-NNN. New ADRs opened for human review may use Proposed; ADRs recording decisions already finalized in planning should use Accepted. Flag invalid or undocumented status strings."
+  - id: "follow-adr-file-and-metadata-format"
+    name: "Use ADR naming and metadata format"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Create ADR files under decisions/ using NNN-kebab-case-title.md with top metadata lines for Status and Date, and never reuse ADR numbers."
+    llm:
+      prompt: "Create ADR files under decisions/ using NNN-kebab-case-title.md with top metadata lines for Status and Date, and never reuse ADR numbers."
+  - id: "include-required-adr-sections"
+    name: "Include standard ADR sections"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "ADRs must include Context, Decision/Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
+    llm:
+      prompt: "ADRs must include Context, Decision or Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
   - id: "avoid-adr-timeline-contradictions"
-    name: "Scope ADR rules to implementation phase"
+    name: "Avoid ADR rules that contradict workflow phase order"
     type: llm
     severity: warning
     category: "patterns"
-    message: "When writing ADR rules, explicitly scope conditions to the correct implementation phase (for example post-publish) to avoid internal timeline contradictions."
+    message: "When drafting ADR text or governance rules about checks, approvals, artifacts, or cleanup, tie each constraint to one phase: pre-merge (before landing on main), merge (PR merge/deploy hook), or post-publish (artifact or release exists publicly). Violations include requiring pre-merge checks against artifacts only created post-publish, or implying deployment/production approvals occur before dates or events documented as occurring at publish."
     llm:
-      prompt: "When writing ADR rules, explicitly scope conditions to the correct implementation phase (for example post-publish) to avoid internal timeline contradictions."
-  - id: "use-numbered-adr-format"
-    name: "Use numbered ADR files"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "Add or update architecture decisions under `decisions/` using numbered filenames (`NNN-topic.md`) and include explicit alternatives and consequences."
-    llm:
-      prompt: "Add or update architecture decisions under `decisions/` using numbered filenames (`NNN-topic.md`) and include explicit alternatives and consequences."
+      prompt: "When reviewing ADRs and related rules, classify claims into phases: pre-merge, merge, post-publish—then flag timeline contradictions. Examples to catch: asserting pre-merge validation of bundles or manifests that ADR narrative only creates post-publish; rules that require approvals or teardown tied to artifacts before the ADR establishes those artifacts exist; cleanup or rollout steps labeled as blocking merge while depending on outputs only available after publish. Prefer explicit phase labels and rewrite vague \"when\" wording into one of these phases."
   - id: "keep-knowledge-in-canonical-buckets"
     name: "Use canonical knowledge directories"
     type: llm
@@ -31,6 +39,78 @@ rules:
     message: "Place new durable knowledge only in the defined top-level buckets (`strategy`, `discovery`, `learnings`, `pulse-reports`, `specs`, `plans`, `wiki`, `ux-options`) and document intent via README stubs instead of creating ad-hoc folders."
     llm:
       prompt: "Place new durable knowledge only in the defined top-level buckets (`strategy`, `discovery`, `learnings`, `pulse-reports`, `specs`, `plans`, `wiki`, `ux-options`) and document intent via README stubs instead of creating ad-hoc folders."
+  - id: "scope-doc-claims-to-current-state"
+    name: "Scope documentation claims precisely"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When docs describe behavior or cleanup timing, avoid absolute statements and condition claims to the current implementation state to prevent contradictions."
+    llm:
+      prompt: "When docs describe behavior or cleanup timing, avoid absolute statements and condition claims to the current implementation state to prevent contradictions."
+  - id: "describe-race-scenarios-and-mitigation-explicitly"
+    name: "Document concurrency risks explicitly"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When documenting concurrent workflows, state the exact conflict scenario and the specific mitigation strategy rather than vague race-condition language."
+    llm:
+      prompt: "When documenting concurrent workflows, state the exact conflict scenario and the specific mitigation strategy rather than vague race-condition language."
+  - id: "state-risks-without-minimizing-language"
+    name: "Use accurate risk wording"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Document known limitations with realistic likelihood and impact, avoiding minimizing terms that understate plausible collision or overwrite risks."
+    llm:
+      prompt: "Document known limitations with realistic likelihood and impact, avoiding minimizing terms that understate plausible collision or overwrite risks."
+  - id: "onboarding-steps-must-match-real-api-behavior"
+    name: "Keep onboarding steps API-accurate"
+    type: llm
+    severity: warning
+    category: "security"
+    message: "Onboarding documentation must only include validation and seed steps that match current API behavior for the intended product context, or explicitly caveat unsafe paths."
+    llm:
+      prompt: "Onboarding documentation must only include validation and seed steps that match current API behavior for the intended product context, or explicitly caveat unsafe paths."
+  - id: "markdown-fenced-blocks-must-specify-language"
+    name: "Add language tags to fenced code blocks"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "Every fenced code block in Markdown must include an explicit language identifier such as bash, yaml, markdown, or text."
+    llm:
+      prompt: "Every fenced code block in Markdown must include an explicit language identifier such as bash, yaml, markdown, or text."
+  - id: "preserve-markdown-table-column-integrity"
+    name: "Keep Markdown table cells valid"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "In Markdown tables, escape or wrap special characters in inline code (such as pipes) so table column structure remains valid."
+    llm:
+      prompt: "In Markdown tables, escape or wrap special characters in inline code (such as pipes) so table column structure remains valid."
+  - id: "use-cross-platform-shell-commands-in-docs"
+    name: "Use cross-platform shell commands"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Commands documented for contributors must work on both macOS and Linux, or provide clearly documented alternatives when platform-specific flags are required."
+    llm:
+      prompt: "Commands documented for contributors must work on both macOS and Linux, or provide clearly documented alternatives when platform-specific flags are required."
+  - id: "use-exact-canonical-path-and-identifier-strings"
+    name: "Use exact canonical literals"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Documentation examples must preserve exact canonical path patterns and identifier formats (for example .helm paths, product slug format, and workflow stage labels) without typos."
+    llm:
+      prompt: "Documentation examples must preserve exact canonical path patterns and identifier formats (for example .helm paths, product slug format, and workflow stage labels) without typos."
+  - id: "onboarding-runbooks-require-verification-commands"
+    name: "Include executable verification in runbooks"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
+    llm:
+      prompt: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
   - id: "sync-haystack-governance-files"
     name: "Update Haystack config files together"
     type: llm
