@@ -23,6 +23,22 @@ rules:
     message: "ADRs must include Context, Decision, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
     llm:
       prompt: "ADRs must include Context, Decision, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
+  - id: "avoid-adr-timeline-contradictions"
+    name: "Scope ADR rules to implementation phase"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When writing ADR rules, explicitly scope conditions to the correct implementation phase (for example post-publish) to avoid internal timeline contradictions."
+    llm:
+      prompt: "When writing ADR rules, explicitly scope conditions to the correct implementation phase (for example post-publish) to avoid internal timeline contradictions."
+  - id: "keep-knowledge-in-canonical-buckets"
+    name: "Use canonical knowledge directories"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "Place new durable knowledge only in the defined top-level buckets (`strategy`, `discovery`, `learnings`, `pulse-reports`, `specs`, `plans`, `wiki`, `ux-options`) and document intent via README stubs instead of creating ad-hoc folders."
+    llm:
+      prompt: "Place new durable knowledge only in the defined top-level buckets (`strategy`, `discovery`, `learnings`, `pulse-reports`, `specs`, `plans`, `wiki`, `ux-options`) and document intent via README stubs instead of creating ad-hoc folders."
   - id: "scope-doc-claims-to-current-state"
     name: "Scope documentation claims precisely"
     type: llm
@@ -95,3 +111,11 @@ rules:
     message: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
     llm:
       prompt: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
+  - id: "sync-haystack-governance-files"
+    name: "Update Haystack config files together"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When changing review automation governance, keep `.haystack/pr-rules.yml`, `.haystack/review-policy.md`, and `.haystack.json` synchronized in the same change."
+    llm:
+      prompt: "When changing review automation governance, keep `.haystack/pr-rules.yml`, `.haystack/review-policy.md`, and `.haystack.json` synchronized in the same change."
