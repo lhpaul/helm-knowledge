@@ -24,13 +24,13 @@ rules:
     llm:
       prompt: "ADRs must include Context, Decision or Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
   - id: "avoid-adr-timeline-contradictions"
-    name: "Scope ADR rules to implementation phase"
+    name: "Avoid ADR rules that contradict workflow phase order"
     type: llm
     severity: warning
     category: "patterns"
-    message: "When writing ADR rules, explicitly scope conditions to the correct implementation phase (for example post-publish) to avoid internal timeline contradictions."
+    message: "When drafting ADR text or governance rules about checks, approvals, artifacts, or cleanup, tie each constraint to one phase: pre-merge (before landing on main), merge (PR merge/deploy hook), or post-publish (artifact or release exists publicly). Violations include requiring pre-merge checks against artifacts only created post-publish, or implying deployment/production approvals occur before dates or events documented as occurring at publish."
     llm:
-      prompt: "When writing ADR rules, explicitly scope conditions to the correct implementation phase (for example post-publish) to avoid internal timeline contradictions."
+      prompt: "When reviewing ADRs and related rules, classify claims into phases: pre-merge, merge, post-publish—then flag timeline contradictions. Examples to catch: asserting pre-merge validation of bundles or manifests that ADR narrative only creates post-publish; rules that require approvals or teardown tied to artifacts before the ADR establishes those artifacts exist; cleanup or rollout steps labeled as blocking merge while depending on outputs only available after publish. Prefer explicit phase labels and rewrite vague \"when\" wording into one of these phases."
   - id: "keep-knowledge-in-canonical-buckets"
     name: "Use canonical knowledge directories"
     type: llm
