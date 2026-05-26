@@ -1,12 +1,12 @@
 rules:
-  - id: "new-adrs-must-be-accepted"
-    name: "Mark new ADRs as Accepted"
+  - id: "adr-status-must-match-lifecycle"
+    name: "ADR status must match documented lifecycle"
     type: llm
     severity: warning
     category: "patterns"
-    message: "Set the Status of newly added ADRs to Accepted at PR time because ADRs in this repository record decisions already made during planning."
+    message: "ADR Status must be one of the values in decisions/README.md: Proposed, Accepted, Deprecated, or Superseded by ADR-NNN. New ADRs awaiting review may use Proposed; ADRs recording finalized planning decisions should use Accepted."
     llm:
-      prompt: "Set the Status of newly added ADRs to Accepted at PR time because ADRs in this repository record decisions already made during planning."
+      prompt: "ADR Status must be one of the values in decisions/README.md: Proposed, Accepted, Deprecated, or Superseded by ADR-NNN. New ADRs opened for human review may use Proposed; ADRs recording decisions already finalized in planning should use Accepted. Flag invalid or undocumented status strings."
   - id: "follow-adr-file-and-metadata-format"
     name: "Use ADR naming and metadata format"
     type: llm
@@ -20,9 +20,9 @@ rules:
     type: llm
     severity: warning
     category: "patterns"
-    message: "ADRs must include Context, Decision, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
+    message: "ADRs must include Context, Decision/Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
     llm:
-      prompt: "ADRs must include Context, Decision, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
+      prompt: "ADRs must include Context, Decision or Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
   - id: "avoid-adr-timeline-contradictions"
     name: "Scope ADR rules to implementation phase"
     type: llm
