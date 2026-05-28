@@ -80,8 +80,8 @@ When the gate fires, the dispatcher does everything in the *same* `reviewer-fano
 dispatch: `code-review → remediation` transition, provision a fresh workspace on the impl
 branch, build `findingsByKind` from the security/test `commentBody`s, spawn the remediation
 agent, handle its result, then `remediation → code-review` on success. Cost is **summed**
-across fan-out + remediation; duration is the **max** (the fan-out is parallel wall-clock,
-remediation is one more agent).
+across fan-out + remediation; duration is the **max** (fan-out is parallel wall-clock;
+remediation adds a sequential tail — see Trade-offs for the accounting caveat).
 
 **Why one Job, not a separate dispatch per stage:**
 
