@@ -29,8 +29,9 @@ agent that applies mechanical fixes and pushes them before the item waits for hu
 
 ### 1. The gate keys on security/test findings only — not code
 
-`shouldRemediate(results)` returns true iff a `security` **or** `test` reviewer carries
-`findings.critical > 0 || findings.high > 0`. The code-reviewer is deliberately excluded.
+As implemented at the time of this decision, `shouldRemediate(results)` returns true when a
+`security` **or** `test` reviewer carries `findings.critical > 0 || findings.high > 0`, and
+false otherwise. The code-reviewer is deliberately excluded.
 
 **Why exclude the code-reviewer:**
 
@@ -79,8 +80,8 @@ When the gate fires, the dispatcher does everything in the *same* `reviewer-fano
 dispatch: `code-review → remediation` transition, provision a fresh workspace on the impl
 branch, build `findingsByKind` from the security/test `commentBody`s, spawn the remediation
 agent, handle its result, then `remediation → code-review` on success. Cost is **summed**
-across fan-out + remediation; duration is the **max** (the fan-out is parallel wall-clock,
-remediation is one more agent).
+across fan-out + remediation; duration is the **max** (fan-out is parallel wall-clock;
+remediation adds a sequential tail — see Trade-offs for the accounting caveat).
 
 **Why one Job, not a separate dispatch per stage:**
 
@@ -92,10 +93,11 @@ remediation is one more agent).
 - The state machine already allows `code-review → remediation → code-review`, so the
   composite path is expressible without schema changes.
 
-### 5. Reviewers are NOT re-run after remediation
+### 5. Reviewers are not re-run after remediation (current scope)
 
 After the remediation agent pushes, the item returns to `code-review` and waits for human
-merge. The reviewers do not run a second time to confirm the fixes.
+merge. In this iteration the reviewers do not run a second time to confirm the fixes; a
+bounded re-review is a candidate for a future session (see *Revisit When*).
 
 **Why no re-run:**
 
