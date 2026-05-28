@@ -12,7 +12,7 @@ After Session 16b the Helm pipeline could take an item from `discovery` through 
 
 1. **`released` was unreachable.** The `code-review` stage only listed `in-development` and `remediation` as valid next stages in the state-machine transition map. There was no automated path to `released`.
 2. **`parseArtifactBranch` did not recognise `helm/impl/` branches.** The webhook handler already had a `pull_request_merged` path that advanced items on branch merge, but it only handled `helm/spec/` and `helm/plan/` refs. `helm/impl/` merges were silently ignored.
-3. **The binary ternary in the webhook handler was not exhaustive.** `parsed.kind === 'spec' ? 'spec-ready' : 'plan-ready'` would produce wrong results for any new branch kind added later — a footgun waiting to be triggered.
+3. **The webhook handler's two-way conditional was not exhaustive.** `parsed.kind === 'spec' ? 'spec-ready' : 'plan-ready'` would produce incorrect results for any new branch kind added later, with no compile-time signal that a case was missing.
 4. **The implementer PR body was misleading.** It told reviewers that merging would advance the item to `code-review`, which was the wrong stage.
 
 ---
@@ -38,7 +38,7 @@ Added `'released'` to `VALID_TRANSITIONS['code-review']`:
 
 ### 3. Webhook handler — exhaustive `Record` mapping
 
-The binary ternary was replaced with two module-level `Record<ArtifactBranchKind, …>` constants:
+The two-way conditional was replaced with two module-level `Record<ArtifactBranchKind, …>` constants:
 
 ```typescript
 const ARTIFACT_STAGE_MAP: Record<ArtifactBranchKind, WorkflowStage> = {
@@ -86,13 +86,22 @@ Allow `code-review → released` as a manual Projects field update (existing `it
 ## Consequences
 
 **Positive:**
-- The pipeline is now end-to-end completable without operator intervention.
-- `Record<ArtifactBranchKind, WorkflowStage>` enforces exhaustiveness — future branch kinds cannot silently fall through to a wrong stage.
-- The `triggeredBy` audit trail correctly identifies whether a stage change came from the knowledge repo or the code repo.
+- As of this implementation, the pipeline is end-to-end completable without operator intervention when all three artifact branch prefixes are wired to the webhook handler.
+- `Record<ArtifactBranchKind, WorkflowStage>` enforces exhaustiveness under the current type definition — adding a new branch kind without updating the maps produces a compile error.
+- The `triggeredBy` audit trail correctly identifies whether a stage change came from the knowledge repo or the code repo under the current single-repo-per-product configuration.
 
 **Negative / Trade-offs:**
 - All three webhook-driven transitions (`spec-ready`, `plan-ready`, `released`) now share the same `pull_request_merged` handler. If Helm needs to support multiple knowledge repos or code repos per product in the future, the routing logic will need to be more sophisticated (e.g., validate `repository.full_name` against the product config).
-- The `impl` case in `ARTIFACT_STAGE_MAP` hardcodes `released` as the next stage after `code-review`. If the workflow is later extended (e.g., a QA gate after code review), this mapping will need to be revisited. The `qa_gate` and `designer_gate` fields in the product config are already reserved for this purpose.
+- The `impl` case in `ARTIFACT_STAGE_MAP` hardcodes `released` as the next stage after `code-review` under the current workflow configuration. If the workflow is extended (e.g., a QA gate after code review), this mapping will need to be updated. The `qa_gate` and `designer_gate` fields in the product config are already reserved for this purpose.
+
+---
+
+## Revisit when
+
+- **QA or designer gate is activated:** if `qa_gate` or `designer_gate` is changed from `'skip'` to an active value in a product config, the `impl → released` mapping in `ARTIFACT_STAGE_MAP` will bypass those gates. Reassess whether the merge-loop transition should target an intermediate stage instead of `released`.
+- **Multiple code repos per product:** if a product config gains a second `code_repos` entry, the single-endpoint webhook routing will not distinguish which repo a `helm/impl/` merge came from. Reassess `repository.full_name` validation before this configuration is supported.
+- **New artifact branch kinds are added:** any new `ArtifactBranchKind` value added to `@helm/shared` must also be reflected in `ARTIFACT_STAGE_MAP` and `ARTIFACT_TRIGGERED_BY_MAP`. TypeScript will catch the omission at compile time, but the correct target stage and triggeredBy value require human judgment.
+- **Webhook delivery reliability requirements change:** the current idempotency strategy (log + 200 on `WorkflowTransitionError` / `ItemNotFoundError`) is appropriate for a single-instance deployment. If Helm moves to a multi-instance or event-sourced architecture, duplicate-delivery handling should be reconsidered.
 
 ---
 
@@ -102,9 +111,9 @@ Allow `code-review → released` as a manual Projects field update (existing `it
 |------|--------|
 | `packages/workflow/src/state-machine.ts` | Add `released` to `code-review` valid transitions |
 | `packages/shared/src/spec-branch.ts` | Extend `ArtifactBranchKind`; add `impl` case in `parseArtifactBranch` |
-| `apps/api/src/routes/webhooks.ts` | Replace ternary with exhaustive `Record` maps |
+| `apps/api/src/routes/webhooks.ts` | Replace conditional with exhaustive `Record` maps (hoisted to module scope) |
 | `packages/orchestrator/src/specialists/implementer.ts` | Fix PR body wording |
 | `packages/workflow/src/state-machine.test.ts` | Add `code-review → released` test; update `getValidNextStages` |
 | `packages/shared/src/spec-branch.test.ts` | Add impl branch parsing, traversal guards, inverse property tests |
-| `apps/api/src/routes/webhooks.test.ts` | Add impl merge block (4 tests) |
+| `apps/api/src/routes/webhooks.test.ts` | Add impl merge block (4 tests) + impl dot-traversal guard test |
 | `CHANGELOG.md` | Session 18 entry |
