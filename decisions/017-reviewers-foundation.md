@@ -170,8 +170,13 @@ correct.
 
 - **Parallel reviews:** All three reviewers run concurrently; total review time is
   bounded by the slowest reviewer.
-- **Isolated workspaces:** Each reviewer gets a fresh shallow clone; no risk of
-  cross-reviewer file contamination.
+- **Isolated workspaces:** Each reviewer gets its own shallow clone via
+  `provisionReviewerWorkspace` — a dedicated helper (separate from the
+  implementer's `provisionCodeWorkspace`) that clones `helm/impl/{externalId}`
+  directly from the remote, so reviewers always operate on the real implementation
+  code rather than a locally-created branch seeded from `default_branch`. Using a
+  shared helper would risk a code-reviewer pushing patches from a wrong base,
+  silently overwriting the implementer's commits on the remote impl branch.
 - **Token never in agent env:** GITHUB_TOKEN stays in the orchestrator process;
   `bypassPermissions` agents cannot access it.
 - **Single-pusher enforced by design:** Security and test reviewers physically cannot
