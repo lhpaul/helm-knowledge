@@ -161,6 +161,53 @@ documented in both the factory and here.
 
 ---
 
+## Alternatives considered
+
+1. **Stay on `ClaudeCodeRuntime` and absorb the metered API cost.** Rejected: Helm
+   fans out ~5–10 spawns per item, so at per-credit API prices the marginal cost
+   per item climbs fast — eliminating that cost is the entire motivation. Claude
+   Code remains available as a sibling for products that prefer it.
+
+2. **Build a raw Anthropic/OpenAI/DeepSeek API runtime instead of wrapping a CLI.**
+   Rejected for H1: a raw-API runtime must implement its own tool-use loop
+   (read/edit/bash dispatch, turn management), which is a large surface and would
+   not use the ChatGPT subscription. The Codex CLI already ships that loop and
+   authenticates headless against the subscription, so wrapping it is far cheaper
+   to build and operate. Raw-API runtimes are deferred (see Out of scope).
+
+3. **Extend `ClaudeCodeRuntime` to multiplex several backends.** Rejected:
+   `IAgentRuntime` (ADR-005) is already runtime-agnostic, so a structural sibling
+   class keeps Claude Code untouched (beyond the `_env.ts` extract), avoids a
+   conditional-laden god-class, and lets each product select one runtime cleanly.
+
+4. **Per-specialist (hybrid) runtime selection now** — e.g. `claude_code` spec-writer
+   + `codex` implementer. Rejected for H1: the dispatcher creates one runtime per
+   dispatch, so hybrid selection requires moving runtime creation to per-spawn.
+   Deferred to H3; the schema rejects mixed runtimes in the meantime.
+
+5. **Wait for `AiderRuntime` (H2) instead of Codex.** Rejected: Codex runs headless
+   against an existing subscription today with no extra credentials, and discovery
+   confirmed the implementer works under `codex exec` without interactive approval,
+   so there was no reason to block on Aider.
+
+---
+
+## Revisit when
+
+- Anthropic restores subscription coverage for headless `claude -p` runs — the cost
+  driver behind this ADR disappears and Claude Code may become the default again.
+- A specialist needs mid-flight steering: one-shot `codex exec` cannot supply it
+  (same limitation as ADR-007), so a session/REPL mode would need designing.
+- Hybrid per-specialist runtimes are required (H3): revisit the per-product factory
+  constraint and the schema's mixed-runtime rejection.
+- The Codex CLI changes its JSONL event schema, terminal-event names, or exit-code
+  semantics — the parser relies on `turn.completed`/`turn.failed` and ignores the
+  exit code (see Discovery, captured at v0.133.0).
+- A non-Bun deployment target is needed: `defaultSpawn` depends on `Bun.spawn`; the
+  `SpawnFn` injection point exists to swap it, but no alternative backend is wired.
+
+---
+
 ## Out of scope (this session)
 
 - AiderRuntime (H2); hybrid per-specialist runtime (H3); raw-API runtimes
