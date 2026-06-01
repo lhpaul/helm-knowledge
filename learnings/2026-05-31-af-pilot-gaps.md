@@ -72,6 +72,54 @@ Y como roadmap del propio Helm, las siguientes sesiones cubren los gaps:
 - **H3** — Product-readiness gate (pre-condición de dispatch).
 - **H4** — `extra_hints` por specialist en `product.yaml`.
 
+## Anexo — Gap analysis Helm reviewers vs Haystack en LEA-103
+
+Durante el code-review de LEA-103 corrió el `reviewer-fanout` de Helm (los
+tres reviewers en paralelo: code/security/test) y, en paralelo, Haystack
+(análisis estático externo, plugin de GitHub) hizo su propia review.
+Comparación de cobertura sobre el mismo PR:
+
+| Hallazgo | Helm | Haystack |
+| -------- | ---- | -------- |
+| `.env` no en `.gitignore` | LOW (code-reviewer) | SECURITY |
+| Pre-commit no staged-aware | MEDIUM (code-reviewer) | — |
+| Commit type policy (`ci` extra) | LOW (code-reviewer) | — |
+| PostCSS XSS vuln (transitive Next) | MEDIUM (security) | — |
+| uuid bounds vuln (transitive Expo) | MEDIUM (security) | — |
+| `apps/web` y `apps/mobile` sin tests | MEDIUM (test) | parcial |
+| API test no cubre server bootstrap | LOW (test) | — |
+| Next.js ESLint no cubre `apps/web` | **gap** | LOGIC ERROR |
+| `PORT` non-numeric crashea startup | **gap** | LOGIC ERROR |
+| `ApiErrorCode` no exercized en tests | **gap** | WEAK COVERAGE |
+| `turbo.json outputs: []` desactiva cache | **gap** | LOGIC ERROR |
+
+Conclusiones:
+
+- **Helm cubre mejor** patrones de workflow (pre-commit, commit policy,
+  secrets management) y dependencias vulnerables (porque ven `pnpm audit`).
+- **Haystack cubre mejor** bugs runtime y configuration leaks
+  (parsing crashes, lint scope, build artifact tooling) — terreno típico
+  de análisis estático real, no LLM.
+- **Solapamiento moderado** en secrets/env. Calibración distinta de severidad.
+
+Implicancia para Helm: las áreas donde Haystack ganó son **detectables con
+análisis estático determinístico** que un agente LLM no necesariamente va
+a pisar. Tres caminos posibles, no excluyentes:
+
+1. **Sumar prompts focalizados** al code-reviewer para los gaps detectados
+   (PORT parsing, ESLint scope, turbo outputs). Cubre lo conocido pero no
+   escala a patrones nuevos.
+2. **Integrar un análisis estático externo como specialist propio** —
+   un wrapper de `pnpm audit` / `eslint` / `tsc` / Haystack que reporta
+   findings al mismo formato `**SEVERITY** · ...` que los demás reviewers,
+   y entra al remediation gate por igual. Escala mejor.
+3. **Bajar el threshold del remediation-agent de HIGH a MEDIUM** para
+   capturar findings de severidad media (típico de configuration bugs).
+   Decision call de calibración.
+
+Pendiente: documentar como **bloque J — extensiones de cobertura del code-review**
+en el roadmap, después de cerrar el bloque I (iteración y readiness).
+
 ## Related artifacts
 
 - `11-ESTADO-Y-ROADMAP-RECONCILIADO.md` (cerebro LH) — sección "Gaps identificados
