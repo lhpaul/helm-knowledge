@@ -62,9 +62,12 @@ specialists:
 3. **Injection.** The section is injected into all five specialist prompt builders
    (spec-writer, plan-writer, implementer, the three reviewers via
    `reviewer-fanout`, and remediation). Each reviewer reads its own
-   `extra_hints`. Order in the prompt is **Product Context → Task → Hints → operative
-   instructions**: the agent reads what product/task it is on, then the reminders,
-   then the concrete instruction, so a hint is never applied to the wrong task.
+   `extra_hints`. Hints are placed **after all product/task context and before the
+   specialist's operative instructions**: the agent reads what product/task it is on,
+   then the reminders, then the concrete instruction, so a hint is never applied to
+   the wrong task. (The exact preceding sections vary per specialist — e.g. the
+   reviewers lead with their task framing and inject the spec as context — but the
+   "context first, hints, then instructions" relative order holds everywhere.)
 
 This is a **backwards-compatible** change — `extra_hints` is optional, so existing
 `product.yaml` files are unaffected.
