@@ -36,6 +36,34 @@ behaviour differs**:
 
 ---
 
+## Env vars
+
+Helm runs under Turborepo, which uses **strict env mode**: only variables declared
+in `turbo.json:globalPassThroughEnv` are forwarded to task processes. Anything not
+listed is stripped before the API process starts.
+
+The canonical list (`turbo.json`):
+
+| Variable | Used by |
+|---|---|
+| `GITHUB_TOKEN` / `GH_TOKEN` | GitHub Projects adapter, sync command |
+| `LINEAR_API_KEY` | Linear adapter |
+| `GITHUB_WEBHOOK_SECRET` | GitHub webhook signature verification |
+| `LINEAR_WEBHOOK_SECRET` | Linear webhook signature verification |
+| `HELM_KNOWLEDGE_REPO_PATH` | Product registry + knowledge repo resolution |
+| `HELM_DATA_DIR` | Item/job persistence (defaults to `./data`) |
+| `ANTHROPIC_API_KEY` | `claude_code` specialist runtime |
+| `OPENAI_API_KEY` | `codex` specialist runtime |
+| `CODEX_API_KEY` | `codex` specialist runtime (alternate) |
+
+> ⚠️ **Footgun:** Si agregás una env var nueva para algún adapter o specialist,
+> también declarala en `turbo.json:globalPassThroughEnv` o no va a llegar al proceso
+> de la API. Bajo el modo estricto de Turbo el proceso arranca igual pero con la
+> variable en `undefined`, así que el síntoma es un adapter/runtime que "no ve" su
+> token sin ningún error de arranque.
+
+---
+
 ## Step 1 — Create the knowledge repo
 
 Create a new GitHub repository for the product's knowledge base. Convention:
