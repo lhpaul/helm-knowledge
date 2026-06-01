@@ -55,6 +55,7 @@ The canonical list (`turbo.json`):
 | `ANTHROPIC_API_KEY` | `claude_code` specialist runtime |
 | `OPENAI_API_KEY` | `codex` specialist runtime |
 | `CODEX_API_KEY` | `codex` specialist runtime (alternate) |
+| `CODEX_ACCESS_TOKEN` | `codex` specialist runtime (alternate) |
 
 > ⚠️ **Footgun:** Si agregás una env var nueva para algún adapter o specialist,
 > también declarala en `turbo.json:globalPassThroughEnv` o no va a llegar al proceso
