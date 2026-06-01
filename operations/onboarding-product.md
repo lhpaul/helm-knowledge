@@ -134,6 +134,10 @@ specialists:
   # Specialist IDs are kebab-case (ADR-022). Older configs used snake_case
   # (spec_writer, …); those are now rejected — see the migration note in
   # operations/migrations/2026-05-31-specialist-id-kebab.md.
+  # The map has nine specialists: the six builders/reviewers below plus three
+  # remediators (spec-remediator, plan-remediator, code-remediator — ADR-024).
+  # `remediation` was renamed to `code-remediator`; see the migration note in
+  # operations/migrations/2026-06-01-remediator-naming.md.
   spec-writer:
     runtime: claude_code
     model: claude-sonnet-4-6
@@ -152,10 +156,24 @@ specialists:
   test-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  remediation:
+  # Early-stage remediators (ADR-024): iterate an already-published spec/plan PR
+  # in-place from operator feedback. Operator-triggered, never auto-dispatched.
+  # Cheaper models are fine — they apply targeted edits, not whole artifacts.
+  spec-remediator:
+    runtime: claude_code
+    model: claude-haiku-4-5
+  plan-remediator:
+    runtime: claude_code
+    model: claude-haiku-4-5
+  # Code-review remediator (formerly `remediation`).
+  code-remediator:
     runtime: claude_code
     model: claude-sonnet-4-6
 ```
+
+> **All specialists must share one runtime.** The schema enforces that every
+> entry in `specialists` uses the same `runtime` (all `claude_code` or all
+> `codex`). Mixing runtimes is rejected at load time.
 
 ### Extra hints (optional, per specialist)
 
