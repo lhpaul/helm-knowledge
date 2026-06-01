@@ -38,20 +38,23 @@ For each `.helm/product.yaml` you own:
 ### Step 1 — rename `remediation` → `code-remediator`
 
 Only the key directly under `specialists:` changes — the value (runtime/model/hints)
-is untouched. The leading-space anchor (`^ +`) keeps the substitution scoped to the
-indented map key, so it won't touch the `remediation` **stage** line under
-`stages_enabled` (which is a list item `- remediation`, not a `remediation:` key).
+is untouched. The address range `/^specialists:/,/^[^[:space:]]/` confines the
+substitution to the `specialists:` block (from that line until the next top-level
+key), and the leading-space anchor (`^ +`) restricts it to an indented map key.
+Together they leave the `remediation` **stage** line under `stages_enabled` alone
+(it's a list item `- remediation`, not a `remediation:` key) and won't touch any
+indented `remediation:` key that might live in another block.
 
 #### GNU sed (Linux)
 
 ```bash
-sed -i -E 's/^( +)remediation:/\1code-remediator:/' .helm/product.yaml
+sed -i -E '/^specialists:/,/^[^[:space:]]/ s/^( +)remediation:/\1code-remediator:/' .helm/product.yaml
 ```
 
 #### macOS (BSD sed)
 
 ```bash
-sed -i '' -E 's/^( +)remediation:/\1code-remediator:/' .helm/product.yaml
+sed -i '' -E '/^specialists:/,/^[^[:space:]]/ s/^( +)remediation:/\1code-remediator:/' .helm/product.yaml
 ```
 
 ### Step 2 — add the two new remediators

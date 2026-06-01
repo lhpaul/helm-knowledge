@@ -69,7 +69,7 @@ remediators have no stage of their own and are **not** in `STAGE_TO_SPECIALIST`.
 They are reached only by an explicit dispatch naming the specialist, with operator
 **feedback**:
 
-```
+```http
 POST /api/products/:slug/items/:externalId/dispatch
 { "specialistId": "spec-remediator", "feedback": "Split step 1 into …" }
 ```
