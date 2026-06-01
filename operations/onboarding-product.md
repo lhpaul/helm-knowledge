@@ -130,22 +130,25 @@ workflow:
   qa_gate: skip                # skip | smoke | regression
 
 specialists:
-  spec_writer:
+  # Specialist IDs are kebab-case (ADR-022). Older configs used snake_case
+  # (spec_writer, …); those are now rejected — see the migration note in
+  # operations/migrations/2026-05-31-specialist-id-kebab.md.
+  spec-writer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  plan_writer:
+  plan-writer:
     runtime: claude_code
     model: claude-sonnet-4-6
   implementer:
     runtime: claude_code
     model: claude-opus-4-7
-  code_reviewer:
+  code-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  security_reviewer:
+  security-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  test_reviewer:
+  test-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
   remediation:
