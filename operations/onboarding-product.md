@@ -157,6 +157,38 @@ specialists:
     model: claude-sonnet-4-6
 ```
 
+### Extra hints (optional, per specialist)
+
+Each specialist accepts an optional `extra_hints` list — terse, imperative
+reminders injected as a `## Hints` section into *that specialist's* prompt for
+*this product only* (ADR-023). Use it for patterns the specialist tends to miss
+for the product, e.g. version pinning or formatter conventions:
+
+```yaml
+  specialists:
+    plan-writer:
+      runtime: codex
+      model: gpt-5.4-mini
+      extra_hints:
+        - "Pin exact versions for runtime deps (Node, pnpm, TS, frameworks)."
+        - "Reference CLAUDE.md sections only after verifying they exist in main."
+    implementer:
+      runtime: codex
+      model: gpt-5.5
+      extra_hints:
+        - "Use Prettier with singleQuote: true and trailingComma: 'all'."
+```
+
+Constraints: each hint is 1–500 chars; max 20 hints per specialist. Order is
+preserved as written, so list higher-priority reminders first.
+
+**When to use `extra_hints` vs CLAUDE.md:**
+
+- **CLAUDE.md** — canonical, prose, narrative context: *"what the product is"*.
+- **`extra_hints`** — imperative, terse, reminders to the specialist: *"don't
+  forget to do X"*. Reach for hints when a specialist keeps missing one specific
+  pattern; reach for CLAUDE.md for the broader story.
+
 Commit and push:
 
 ```bash
