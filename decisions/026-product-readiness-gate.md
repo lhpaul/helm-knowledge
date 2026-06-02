@@ -98,6 +98,27 @@ spec-writer?" from the single source of truth, not a duplicated mapping.
 
 ---
 
+## Revisit when
+
+- The dispatch path starts cloning the code repo before the spec-writer runs (e.g.
+  a future stage needs a working tree at dispatch time) — the existence checks
+  should switch to inspecting the local clone instead of `raw.githubusercontent`,
+  and the duplicate fetch with `fetchProductContext` collapses.
+- A non-GitHub code-repo remote (GitLab, Bitbucket, self-hosted) appears — the
+  unparseable-URL → unverifiable path becomes a real gap; add the shallow-clone
+  fallback this ADR deferred.
+- The spec-writer stops being the only stage that reads raw repo docs (e.g. a new
+  early specialist also needs them) — the spec-writer-only gate scope must widen,
+  and `resolveSpecialistId`-based gating logic should be reconsidered.
+- False-positive data accumulates on the deferred issue-body file-reference check,
+  or the accepted agent-instructions filename set shifts (e.g. `AGENTS.md` fully
+  supersedes the others) — revisit `AGENT_INSTRUCTION_FILES` and the follow-up.
+- The unverifiable-is-not-ready stance (missing token / unparseable URL → 422 under
+  `required`) proves too blunt operationally — revisit whether a config error
+  should be a `500`/`422` rather than a `missing_context` precondition entry.
+
+---
+
 ## Consequences
 
 - **Silent invention becomes a loud, actionable 422.** Operators see exactly which
