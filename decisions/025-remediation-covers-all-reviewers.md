@@ -128,6 +128,24 @@ prevents an empty, misleading commit.
 
 ---
 
+## Revisit when
+
+- The code-reviewer's self-apply path is removed or it becomes comment-only — the
+  "first chance, then remediator safety net" split collapses and the gate logic
+  should be reconsidered.
+- A reviewer kind is added or renamed: `shouldRemediate`, the dispatcher's
+  `findingsByKind` map, and `buildRemediationParams`' `['code','security','test']`
+  loop must all learn the new kind (the same three-spot change this ADR made).
+- The workspace layout changes so the clone is no longer a direct
+  `tmpdir()/helm-review-…` dir (e.g. clone moves under a per-run parent) — the
+  `{workspacePath}-artifacts` sibling convention and its cleanup sites need
+  revisiting.
+- A fan-out reviewer failure should block (rather than be masked by) a successful
+  remediation — the dispatch result/transition semantics are out of scope here and
+  tracked separately; revisit if that decision lands.
+
+---
+
 ## Consequences
 
 - The remediator's prompt now expects code-review findings too, and documents the
