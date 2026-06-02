@@ -68,3 +68,24 @@ accepts it." The endpoint shape (what the API accepts) and the policy
 this again in future triages (e.g., LEA-105+), skip it.
 
 **Origin:** LEA-104 re-triage 1, 2026-06-02.
+
+---
+
+### `tenantTable(...)` helper name read as RLS / tenant-scoping
+
+**Pattern:** Haystack flags `core_*` (or other non-tenant) tables as using
+"tenant-scoped RLS" because they are declared with a helper named
+`tenantTable(...)`, and concludes RLS is applied / required.
+
+**Why it's a false positive:** The helper is just
+`pgTableCreator((name) => name)` — an identity table factory with misleading
+naming. It applies **no** RLS and no tenant scoping. The actual RLS state is
+whatever the migration declares, which for `core_*` is none (service-role-only,
+per §4.5).
+
+**Action:** Verify by reading the migration's RLS statements
+(`grep -c 'ROW LEVEL\|CREATE POLICY'`) before treating as a finding. If the
+migration has zero RLS on the flagged tables, dismiss. (Cosmetic rename of the
+helper is tracked separately in LEA-124 to reduce this FP surface.)
+
+**Origin:** LEA-105 impl re-triage, 2026-06-02.
