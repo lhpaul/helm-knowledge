@@ -1,0 +1,70 @@
+# Code-review false positives
+
+Recurring findings from automated code review (Haystack, reviewer agents) that
+are **not real issues**. When a triage surfaces one of these, mark it
+dismissed/known rather than acting on it.
+
+Each entry: the pattern, why it's a false positive, and a concrete example.
+
+---
+
+## Hardcoded test-fixture credentials (ephemeral testcontainers)
+
+**Pattern:** A reviewer flags "hardcoded credentials / secret-like values
+committed in code" pointing at database username/password literals in test
+fixtures, citing the secrets policy.
+
+**Why it's a false positive:** These are credentials for a **disposable,
+local-only PostgreSQL container** spun up per test run and torn down after. They
+are never real secrets, never reach any environment, and sourcing them from env
+vars would add ceremony with zero security benefit. This is standard
+testcontainers practice.
+
+**Example:** `packages/db/test/fixture.ts` defines
+`const postgresUser = 'postgres'`, `const postgresPassword = 'postgres'`, and an
+unprivileged `app_user`/`app_user` role for the throwaway `postgres:16-alpine`
+container. Flagged by Haystack on PR lhpaul/leasity-tenants#3 (LEA-104) as a
+"Rules violation / secrets policy" — dismissed.
+
+---
+
+## Health endpoint returns `degraded` status / extra fields (HTTP 200)
+
+**Pattern:** A reviewer flags the `/health` endpoint for "returning extra data
+beyond the documented contract" or "logging/returning a degraded status instead
+of only `{ status: 'ok' }`".
+
+**Why it's a false positive:** This behavior is **spec-intended**. The `/health`
+endpoint is required to stay HTTP 200 while reporting a degraded application
+status (and a `checks`/`db` payload) when the database is unreachable. This was
+a deliberate design derived from LEA-103's Haystack feedback and is an explicit
+acceptance criterion of the LEA-104 spec — fail-open with visibility, not
+fail-closed.
+
+**Example:** `apps/api/src/app.ts` returns `200` with `status: 'degraded'` +
+`db: 'unreachable'` when the DB probe fails. Flagged by Haystack on PR
+lhpaul/leasity-tenants#3 (LEA-104) as a "Rules violation" — dismissed as
+spec-intended.
+
+> Note (separate, NOT a false positive): routing the DB-probe failure log
+> through the structured logger instead of `console.warn` is a real follow-up —
+> tracked in LEA-118. Only the *degraded 200 behavior itself* is the false
+> positive.
+
+---
+
+### CLAUDE.md §10.2 endpoint signature vs §10.3 matching policy
+
+**Pattern:** Haystack flags inconsistency between §10.2 (endpoint
+signature `GET /contacts?email=&rut=` — accepts both) and §10.3
+(matching policy: email-only for the MVP).
+
+**Why it's a false positive:** §10.3 explicitly addresses the
+discrepancy with "RUT is not used for matching even though endpoint #1
+accepts it." The endpoint shape (what the API accepts) and the policy
+(how we use it) are consistent, not contradictory.
+
+**Action:** Mark as false positive, do not ticket. If Haystack surfaces
+this again in future triages (e.g., LEA-105+), skip it.
+
+**Origin:** LEA-104 re-triage 1, 2026-06-02.
