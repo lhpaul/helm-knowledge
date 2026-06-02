@@ -122,7 +122,7 @@ drift. Two reasons:
 
 ## References
 
-- helm PR: `feat(code-reviewer): validate diff against CLAUDE.md §4 contract (HIGH severity)`
+- helm PR: lhpaul/helm#40 — `feat(code-reviewer): validate diff against CLAUDE.md §4 contract (HIGH severity)`
 - ADR-025 — remediation covers all reviewers (the `shouldRemediate()` flow this
   reuses).
 - LEA-104 — the AF schema baseline whose five-batch remediation tax motivated
