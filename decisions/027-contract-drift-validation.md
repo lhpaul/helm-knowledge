@@ -60,6 +60,26 @@ format, no changes to `fetch-product-context` or the remediation-gate wiring.
 `REVIEW_MD_FORMAT` documents `Contract drift §4` as a recognised category so
 reviewer agents emit it consistently; the parser regex is unchanged.
 
+### Negative space — what the reviewer must NOT do
+
+A `Contract drift §4` finding is **findings-only**: the code-reviewer must NOT
+edit schema, migration, or entity-type files to apply the fix itself, however
+mechanical the rename looks. The single-pusher mechanical-fix permission
+(ADR-018) still applies to genuine low-risk edits in **non-schema** files
+(typos, comments, lint nits), but it explicitly does not extend to contract
+drift. Two reasons:
+
+- **The remediation path is the point.** Routing drift to HIGH →
+  `shouldRemediate()` → code-remediator is the entire design. If the reviewer
+  can auto-apply and push a rename, it short-circuits that path and the HIGH
+  finding never reaches the remediator/human — collapsing the safety net this
+  ADR builds.
+- **Migrations are immutable contracts post-apply.** Editing an
+  already-committed migration file to rename a column is itself a contract
+  violation — the correct fix is a new forward migration, which the reviewer is
+  not positioned to author. Auto-fixing drift in a migration creates a worse bug
+  than the drift it "fixes".
+
 ## Alternatives considered
 
 - **Per-product `canonical_contracts: [paths]` in `product.yaml`.** Rejected for
