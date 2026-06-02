@@ -104,18 +104,27 @@ artifact to leak.
 
 ### 3. Defense in depth: `pushReviewerPatches` short-circuits on no source changes
 
-Even with (2), `pushReviewerPatches` excludes artifact pathspecs
-(`review.md`, `remediation.md`, `_helm-artifacts/`) from **both** its change check
-and its staging:
+Even with (2), `pushReviewerPatches` inspects `git status --porcelain` and
+treats **untracked** scratch artifacts leaked into the workspace as non-source:
 
-- `git status --porcelain -- . :(exclude)…` → if the only changes are leaked
-  artifacts, the result is empty and the function returns
-  `{ pushed: false }` with no commit or push.
-- `git add -A -- . :(exclude)…` → a leaked artifact is never staged, so even when
-  there *are* genuine source changes alongside it, the commit excludes it.
+- A status entry is a "leaked artifact" only when it is **untracked** (`??`)
+  *and* its path is `review.md`, `remediation.md`, or under a `_helm-artifacts/`
+  directory. A *tracked* file of the same name being modified is real source and
+  is kept — so a product repo that legitimately versions a `review.md` is not
+  harmed.
+- If every change is a leaked artifact, the function returns `{ pushed: false }`
+  with no commit or push.
+- Staging excludes only the specific leaked-untracked paths detected
+  (`git add -A -- . :(exclude)<leaked-path>`), so a leak never lands in the
+  commit even alongside genuine source changes.
 
-If some future path accidentally writes an artifact into the workspace despite
-(2), the absence of *source* changes prevents an empty, misleading commit.
+The artifact **names** here are a defensive in-workspace pattern, not the real
+location: real summaries live in the sibling `{workspacePath}-artifacts/`
+directory (2) and never enter the clone. `_helm-artifacts/` in particular is a
+hypothetical in-workspace leak path (it echoes the original artifact-dir naming);
+the exclusion exists only for the case where a misbehaving agent writes a scratch
+file into its workspace despite (2). The absence of *source* changes then
+prevents an empty, misleading commit.
 
 ---
 
