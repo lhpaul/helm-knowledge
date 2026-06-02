@@ -126,6 +126,22 @@ the exclusion exists only for the case where a misbehaving agent writes a scratc
 file into its workspace despite (2). The absence of *source* changes then
 prevents an empty, misleading commit.
 
+### 4. A reviewer-fan-out failure is not masked by a successful remediation
+
+Widening the gate to the code-reviewer (1) widened an existing failure mode: the
+gate can now fire on a code-only HIGH while *another* reviewer (e.g. security)
+crashed or failed to post its comment. Previously the dispatcher returned the
+fan-out's `error` status in that case; now a successful remediation of the gating
+findings would return `done` and paint over the reviewer that never ran.
+
+So when remediation succeeds **and** `fanoutResult.status === 'error'`, the
+dispatcher still transitions the item back to `code-review` (remediation genuinely
+happened) but reports the job as `status: 'error'`, carrying the fan-out error
+("reviewer coverage may be incomplete"). The operator sees the coverage gap and
+can re-dispatch (which re-runs the fan-out) rather than a false green. The
+remediator addressed only the findings that *did* surface, so partial coverage
+must not read as success.
+
 ---
 
 ## Revisit when
@@ -140,9 +156,11 @@ prevents an empty, misleading commit.
   `tmpdir()/helm-review-…` dir (e.g. clone moves under a per-run parent) — the
   `{workspacePath}-artifacts` sibling convention and its cleanup sites need
   revisiting.
-- A fan-out reviewer failure should block (rather than be masked by) a successful
-  remediation — the dispatch result/transition semantics are out of scope here and
-  tracked separately; revisit if that decision lands.
+- The job-status semantics in (4) prove too blunt — e.g. a transient comment-post
+  failure shouldn't necessarily fail the whole job, or re-dispatch-on-error causes
+  loops when a reviewer fails persistently. Revisit whether to distinguish
+  reviewer-agent failures from comment-post failures, or to add a dedicated
+  "partial coverage" signal instead of reusing `status: 'error'`.
 
 ---
 
@@ -153,6 +171,9 @@ prevents an empty, misleading commit.
 - A code-reviewer that writes a summary but no source no longer produces a commit
   — the gap is visible (`{ pushed: false }`) instead of masked.
 - The single-pusher invariant is unchanged: code-reviewer first, remediator last.
+- A successful remediation no longer masks a reviewer-fan-out failure: the job is
+  reported as `error` (with the item still transitioned to code-review) so partial
+  reviewer coverage is visible to the operator (4).
 - Forward-looking only. Pre-existing branches that already carry committed
   `review.md` / `remediation.md` artifacts (e.g. LEA-104 PR #3) are cleaned up
   manually by the operator; this change does not rewrite history.
