@@ -129,6 +129,12 @@ workflow:
     - released
   designer_gate: skip          # skip | optional | required
   qa_gate: skip                # skip | smoke | regression
+  readiness_gate: skip         # skip | warn | required (ADR-026). Pre-dispatch
+                               # check that every role:app code_repo has a
+                               # README + agent instructions (AGENTS.md /
+                               # AGENT.md / CLAUDE.md) before the spec-writer
+                               # runs. `required` blocks with 422 missing_context;
+                               # `warn` logs and proceeds. Default skip.
 
 specialists:
   # Specialist IDs are kebab-case (ADR-022). Older configs used snake_case
