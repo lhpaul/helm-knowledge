@@ -51,8 +51,17 @@ Locked design forks (resolved with the operator during session intake):
 
 - **Trigger: manual only.** No auto-classified rollback. Classifying "env
   failure vs implementer logic failure" is risky (false positives would roll
-  back legitimate failures); manual is safer until a high-confidence classifier
-  exists.
+  back legitimate failures). Manual dispatch is the lower-risk default here
+  because the operator confirms the failure was environmental before rolling
+  back, rather than a classifier guessing. Manual rollback is **not risk-free**:
+  the operator can still roll back an item whose failure was actually a logic
+  failure (re-planning won't fix it, costing a wasted cycle), and the
+  running-job guard (below) reduces but does not eliminate the check-then-write
+  race with an in-flight dispatch (a job started in that window would have its
+  transition writes interleaved with the rollback — documented as a residual v0
+  limitation in the route). These residual risks are bounded by operator
+  judgment and the running-job rejection; an auto-classifier would add unbounded
+  false-positive risk on top. Revisit if a high-confidence classifier emerges.
 - **Scope: single pair (`in-development → plan-ready`).** No generalized
   reverse-transition system. The allow-list is one pair, pinned by strict
   literals; a future pair (e.g. `code-review → plan-ready`) requires an explicit
@@ -113,9 +122,9 @@ private `applyTransition` helper; only the `validateTransition` call differs.
 
 ## Consequences
 
-- Operators roll back via an API call; the manual JSON-edit pattern in the AF
-  driver gotchas table becomes **obsolete** (LH updates that driver doc
-  separately — it lives outside the Helm repos).
+- Operators roll back via an API call; with this endpoint in place the manual
+  JSON-edit pattern in the AF driver gotchas table is no longer needed (LH
+  updates that driver doc separately — it lives outside the Helm repos).
 - The state machine stays a clean happy-path codification; rollback is an
   explicit, documented escape valve.
 - Forward-only callers of `transition()` continue to enjoy the strict
@@ -161,5 +170,5 @@ private `applyTransition` helper; only the `validateTransition` call differs.
   late-stage rework path this complements at the early stage).
 - [ADR-026](026-product-readiness-gate.md) — product-readiness gate (sibling
   pre-dispatch hardening from the same pilot evidence).
-- `piloto-arriendo-facil-driver.md` gotchas table — currently documents the
-  manual JSON-edit workaround this endpoint replaces.
+- `piloto-arriendo-facil-driver.md` gotchas table — documents the manual
+  JSON-edit workaround that this endpoint supersedes as of this design.
