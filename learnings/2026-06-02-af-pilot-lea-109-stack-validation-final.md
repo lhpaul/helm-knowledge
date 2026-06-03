@@ -1,7 +1,7 @@
 ---
 title: "LEA-109 stack validation (final) — §4 additive-table question settled, first reviewer-vs-reviewer conflict"
 category: "agent-behavior"
-date: "2026-06-03"
+date: "2026-06-02"
 source:
   type: "session"
   ref: "piloto AF LEA-109 (Better Auth + email OTP en apps/api — Plan A user→tenants, BETTER_AUTH_DATABASE_URL split)"
