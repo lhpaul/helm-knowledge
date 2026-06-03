@@ -89,3 +89,22 @@ migration has zero RLS on the flagged tables, dismiss. (Cosmetic rename of the
 helper is tracked separately in LEA-124 to reduce this FP surface.)
 
 **Origin:** LEA-105 impl re-triage, 2026-06-02.
+
+---
+
+### Code-reviewer flags `BETTER_AUTH_DATABASE_URL` split as "separate auth database" violation
+
+**Pattern:** Code-reviewer reads "do not introduce a separate auth database" in
+the spec/plan literally and flags `BETTER_AUTH_DATABASE_URL` (a connection URL
+distinct from `DATABASE_URL`) as a spec violation when it points at the SAME
+database as `DATABASE_URL`.
+
+**Why it's a false positive:** The split is a connection-scope separation
+(least privilege), not a data separation. Same database, same table set, Plan A
+`user`→`tenants` mapping intact. See `CLAUDE.md` §5 "Auth connection scope
+(LEA-109 adjudication)" in the target repo for canonical wording.
+
+**Action:** Mark as catalogued false-positive. Do not let the code-remediator
+revert the split — that re-opens a real security HIGH (RLS-bypass on whole API).
+
+**Origin:** LEA-109 reviewer-fanout round 2, 2026-06-02.
