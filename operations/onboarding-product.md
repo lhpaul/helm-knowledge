@@ -181,6 +181,12 @@ specialists:
 > entry in `specialists` uses the same `runtime` (all `claude_code` or all
 > `codex`). Mixing runtimes is rejected at load time.
 
+> **Codex host requirement: Codex CLI ≥ 0.136.0.** Products on `runtime: codex`
+> require Codex CLI **0.136.0 or newer** on the host running the orchestrator.
+> Helm invokes `codex exec --json -C <workdir>` and feeds the prompt over stdin;
+> older CLIs (the removed `--print` shape, `< 0.133`) are not supported. See
+> ADR-028.
+
 ### Extra hints (optional, per specialist)
 
 Each specialist accepts an optional `extra_hints` list — terse, imperative
