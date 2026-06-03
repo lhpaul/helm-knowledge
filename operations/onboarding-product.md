@@ -485,6 +485,32 @@ curl http://localhost:4000/api/products/<product-slug>/items
 
 ---
 
+## Operational endpoints
+
+### Rollback a failed implementer dispatch (ADR-029)
+
+When the implementer agent fails **before any real work** (Codex CLI crash,
+image-tool defect, environmental wedge) the item is left stuck in
+`in-development`, with no forward path that makes sense. Return it to
+`plan-ready` so it can be re-planned and re-dispatched:
+
+```bash
+curl -X POST http://localhost:4000/api/items/<externalId>/rollback \
+  -H 'Content-Type: application/json' \
+  -d '{"fromStage":"in-development","toStage":"plan-ready","reason":"codex image-tool crash, $0 cost"}'
+```
+
+- The **only** permitted pair is `in-development → plan-ready` (pinned by strict
+  schema literals); `reason` is required (1–500 chars) and recorded in the item
+  history as `triggeredBy: 'manual:rollback'`.
+- Returns `409` if a dispatch job is currently running for the item — wait for it
+  to finish (or fail) first. Returns `400` if the item is not actually at
+  `in-development`, `404` if it doesn't exist.
+- This **replaces** the old workaround of hand-editing
+  `<helm-data>/items/<id>.json` — do not edit the item JSON by hand.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
