@@ -40,12 +40,15 @@ order) to the spec-writer / plan-writer worktree, with no 2000-char truncation.
 The existing `fetchProductContext()` function is untouched; the new function is
 an additive opt-in for the dispatcher to call right before spawning the agent.
 
-It returns a `MaterializedProductContext { readme, agentInstructions: { path,
-filename, bytes }, missingFiles[] }`. The agent instruction file is written
-under its real winning variant name (`AGENTS.md` / `AGENT.md` / `CLAUDE.md`) —
-no rename. A 404 yields a `null` entry plus a `missingFiles` entry (the worktree
-simply lacks that file); a non-404 HTTP error propagates so the caller can log
-it.
+It returns a `MaterializedProductContext { readme: { path, bytes } | null,
+agentInstructions: { path, filename, bytes } | null, missingFiles: string[] }`.
+The README and the winning agent instruction file are fetched **independently**.
+The agent instruction file is written under its real winning variant name
+(`AGENTS.md` / `AGENT.md` / `CLAUDE.md`) — no rename. For each file
+independently: a 404 sets that field to `null` and adds the filename to
+`missingFiles` (the worktree simply lacks that file) — both may be `null`
+simultaneously if both 404. A non-404 HTTP error propagates so the caller can
+log it.
 
 Locked design forks:
 
