@@ -489,10 +489,21 @@ curl http://localhost:4000/api/products/<product-slug>/items
 
 ### Rollback a failed implementer dispatch (ADR-029)
 
-When the implementer agent fails **before any real work** (Codex CLI crash,
-image-tool defect, environmental wedge) the item is left stuck in
-`in-development`, with no forward path that makes sense. Return it to
-`plan-ready` so it can be re-planned and re-dispatched:
+Use this endpoint to move an item from `in-development` back to `plan-ready` after
+an implementer dispatch fails and leaves the item stuck in `in-development`
+(for example: a Codex CLI crash, an image-tool defect, or an environmental wedge
+during the dispatch). It re-opens the item for re-planning and re-dispatch.
+
+**Do not change an item's stage by hand-editing `<helm-data>/items/<id>.json`.**
+Manual edits skip the concurrency guard and the history entry; always use this
+endpoint.
+
+**Preconditions (all must hold, else the call is rejected):**
+
+- The item's current stage **must** be `in-development` (else `400`).
+- No dispatch job may be running for the item (else `409` with `runningJobId` —
+  wait for the running job to finish or fail first).
+- The item must exist for the product (else `404`).
 
 ```bash
 curl -X POST http://localhost:4000/api/items/<externalId>/rollback \
@@ -500,14 +511,31 @@ curl -X POST http://localhost:4000/api/items/<externalId>/rollback \
   -d '{"fromStage":"in-development","toStage":"plan-ready","reason":"codex image-tool crash, $0 cost"}'
 ```
 
-- The **only** permitted pair is `in-development → plan-ready` (pinned by strict
-  schema literals); `reason` is required (1–500 chars) and recorded in the item
-  history as `triggeredBy: 'manual:rollback'`.
-- Returns `409` if a dispatch job is currently running for the item — wait for it
-  to finish (or fail) first. Returns `400` if the item is not actually at
-  `in-development`, `404` if it doesn't exist.
-- This **replaces** the old workaround of hand-editing
-  `<helm-data>/items/<id>.json` — do not edit the item JSON by hand.
+The **only** permitted pair is `in-development → plan-ready` (pinned by strict
+schema literals); `reason` is required (1–500 chars) and is recorded in the item
+history as `triggeredBy: 'manual:rollback'`.
+
+**Verify the rollback completed:**
+
+```bash
+# The current stage should now be 'plan-ready'
+curl -s http://localhost:4000/api/items | \
+  jq '.[] | select(.externalId == "<externalId>") | .currentStage'
+# Expected output:
+# "plan-ready"
+
+# The latest history entry should record the manual rollback + your reason
+curl -s http://localhost:4000/api/items | \
+  jq '.[] | select(.externalId == "<externalId>") | .history[-1]'
+# Expected (timestamps will differ):
+# {
+#   "fromStage": "in-development",
+#   "toStage": "plan-ready",
+#   "triggeredBy": "manual:rollback",
+#   "at": "2026-06-03T22:30:00.000Z",
+#   "note": "codex image-tool crash, $0 cost"
+# }
+```
 
 ---
 
