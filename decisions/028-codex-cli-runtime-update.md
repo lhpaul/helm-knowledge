@@ -15,7 +15,7 @@ API billing. It was implemented and discovered against **Codex CLI v0.133.0**.
 The Arriendo Fácil pilot was blocked at LEA-109 (Better Auth setup). The
 implementer dispatch had failed under Codex CLI **0.133.0** with:
 
-```
+```text
 [turn.failed] image_generation_user_error:
 "The model 'gpt-image-2' does not exist." (param: tools, status 400)
 ```
@@ -52,7 +52,7 @@ would have been a regression.
 Keep the `codex exec --json` invocation (no migration), re-verify it against
 Codex CLI 0.136.0, and apply two robustness deltas. The runtime now invokes:
 
-```
+```bash
 codex exec --json --skip-git-repo-check -C <workdir> \
   [--sandbox workspace-write | --dangerously-bypass-approvals-and-sandbox] \
   [--model <model>]
