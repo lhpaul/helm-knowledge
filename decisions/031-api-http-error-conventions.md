@@ -79,20 +79,21 @@ no-op for the regex, as noted above).
 mapErrorToResponse(error, extras?): { body: ErrorResponseBody; status: 400 | 404 | 409 | 422 | 500 }
 ```
 
-| Error class                | Status | Body                              |
-| -------------------------- | ------ | --------------------------------- |
-| `ItemNotFoundError`        | 404    | `{ error: error.message, …extras }` |
-| `ItemAlreadyExistsError`   | 409    | `{ error: error.message, …extras }` |
-| `StageMismatchError`       | 400    | `{ error: error.message, …extras }` |
-| `WorkflowTransitionError`  | 422    | `{ error: error.message, …extras }` |
-| _unknown_                  | 500    | `{ error: 'Internal server error', …extras }` |
+| Error class                | Status | Body                                   |
+| -------------------------- | ------ | -------------------------------------- |
+| `ItemNotFoundError`        | 404    | `{ …extras, error: error.message }`      |
+| `ItemAlreadyExistsError`   | 409    | `{ …extras, error: error.message }`      |
+| `StageMismatchError`       | 400    | `{ …extras, error: error.message }`      |
+| `WorkflowTransitionError`  | 422    | `{ …extras, error: error.message }`      |
+| _unknown_                  | 500    | `{ …extras, error: 'Internal server error' }` |
 
 Each recognized class returns its own `.message`. This is **byte-identical** to
 the strings the routes built by hand, because the error classes already set
 `.message` to exactly those strings — e.g. `ItemNotFoundError.message` is
 `"Item not found: <id>"`, which is what `items.ts` and `rollback.ts` emitted
 literally. Unknown errors map to a generic `500` with **no `error.message`
-leak** (no internal paths/state in the body).
+leak** (no internal paths/state in the body). `extras` is spread **before** the
+canonical `error` field so a caller can never clobber the mapped message.
 
 ### Migration shape — preserving Hono's default 500
 
@@ -118,7 +119,7 @@ class maps to 500, so `status === 500` unambiguously means "unknown".)
   `.onError()` middleware.
 - **Validator shape:** discriminated union (no throw).
 - **Response shape:** preserved exactly. **Not breaking.**
-- **Error classes:** the five canonical ones — `ItemNotFoundError`,
+- **Error classes:** the four canonical ones — `ItemNotFoundError`,
   `ItemAlreadyExistsError`, `StageMismatchError` (`apps/api/src/services/errors.ts`),
   `WorkflowTransitionError` (`@helm/workflow`) — plus the unknown→500 catch-all.
   No new classes.
