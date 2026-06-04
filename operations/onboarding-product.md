@@ -126,6 +126,7 @@ workflow:
     - in-development
     - code-review
     - remediation
+    - merged
     - released
   designer_gate: skip          # skip | optional | required
   qa_gate: skip                # skip | smoke | regression
@@ -135,6 +136,18 @@ workflow:
                                # AGENT.md / CLAUDE.md) before the spec-writer
                                # runs. `required` blocks with 422 missing_context;
                                # `warn` logs and proceeds. Default skip.
+  final_stage: released        # merged | released (ADR-032). Terminal stage for
+                               # this product. Default `released`: an impl PR
+                               # merge lands the item in `merged`, and it reaches
+                               # `released` (shipped to users) only via the
+                               # release trigger — the operator endpoint or the
+                               # GitHub release.published webhook. Set `merged`
+                               # for a product with NO user-facing release step
+                               # (e.g. the playground): items terminate at
+                               # `merged`, the release endpoint returns 409, and
+                               # the release webhook is a no-op. The state
+                               # machine is unchanged either way — this only
+                               # gates whether items ever reach `released`.
 
 specialists:
   # Specialist IDs are kebab-case (ADR-022). Older configs used snake_case
@@ -315,7 +328,7 @@ gh project field-create <project-number> \
   --owner <github-org-or-username> \
   --name "Helm Stage" \
   --data-type SINGLE_SELECT \
-  --single-select-options "discovery,spec-draft,spec-ready,plan-draft,plan-ready,in-development,code-review,remediation,released"
+  --single-select-options "discovery,spec-draft,spec-ready,plan-draft,plan-ready,in-development,code-review,remediation,merged,released"
 ```
 
 Verify the field was created:
@@ -536,6 +549,48 @@ curl -s http://localhost:4000/api/items | \
 #   "note": "codex image-tool crash, $0 cost"
 # }
 ```
+
+### Promote a `merged` item to `released` (ADR-032)
+
+Once an item's impl PR has merged, it sits in **`merged`** (PR merged, not yet
+shipped to users). Moving it to **`released`** (shipped) is an explicit action —
+it does **not** happen automatically on merge. There are two ways to do it.
+
+> **Opt-out products** (`workflow.final_stage: merged`) have no `released`
+> stage: the endpoint below returns `409` and the release webhook is a no-op.
+> Items terminate at `merged`.
+
+**A. Manual — promote one item.** A normal forward edge (`merged → released`);
+no force/escape valve involved.
+
+**Preconditions (all must hold, else the call is rejected):**
+
+- The item's current stage **must** be `merged` (else `400`).
+- The product must have `final_stage: released` (else `409` — the product has
+  no `released` stage).
+- The item must exist for the product (else `404`).
+
+```bash
+curl -X POST http://localhost:4000/api/items/<externalId>/release \
+  -H 'Content-Type: application/json' \
+  -d '{"reason":"shipped in v1.2.0"}'
+```
+
+`reason` is **optional** (1–500 chars) and is recorded in the item history as
+`triggeredBy: 'manual:release'`. Verify exactly as for rollback above — the
+current stage should now be `"released"` and the latest history entry should
+show `"fromStage": "merged", "toStage": "released", "triggeredBy":
+"manual:release"`.
+
+**B. Bulk — GitHub `release.published` webhook.** When you publish a GitHub
+release (`action: published`) for the product's code repo, Helm promotes
+**every** item currently in `merged` to `released` in one shot
+(`triggeredBy: 'webhook:release'`). This rides the existing
+`POST /api/webhooks/github` endpoint and signature scheme — no extra endpoint
+to configure. It works for Linear products too (they still ship via GitHub
+releases). The promotion is idempotent: items not in `merged` are skipped, and
+a per-item failure is logged without failing the delivery. Use the manual
+endpoint (A) when you need to ship a single item without cutting a release.
 
 ---
 
