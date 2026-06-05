@@ -46,8 +46,8 @@ The canonical list (`turbo.json`):
 
 | Variable | Used by |
 |---|---|
-| `GITHUB_TOKEN` / `GH_TOKEN` | GitHub Projects adapter, sync command |
-| `LINEAR_API_KEY` | Linear adapter |
+| `GITHUB_TOKEN` / `GH_TOKEN` | GitHub Projects adapter, sync + writeback-backfill commands (needs **write** access for stage writeback) |
+| `LINEAR_API_KEY` | Linear adapter (reads + stage writeback; the var name is set by `issue_tracker.api_key_env`) |
 | `GITHUB_WEBHOOK_SECRET` | GitHub webhook signature verification |
 | `LINEAR_WEBHOOK_SECRET` | Linear webhook signature verification |
 | `HELM_KNOWLEDGE_REPO_PATH` | Product registry + knowledge repo resolution |
@@ -314,7 +314,7 @@ git push
 ## Step 3 — Create the "Helm Stage" custom field in the GitHub Project
 
 Helm tracks workflow stages via a **single-select custom field** called "Helm Stage"
-on the GitHub Project. This field must be created with the 9 canonical stage names
+on the GitHub Project. This field must be created with the 10 canonical stage names
 (exact spelling matters — the adapter maps option names to workflow stages).
 
 > ⚠️ **If you copied an existing Project with `gh project copy`:** custom single-select
@@ -345,6 +345,62 @@ empty, the field was not created — retry the `field-create` command.
 
 > **Alternative — GitHub UI:** Settings → Fields → New field → Single select. Add
 > each stage name as an option in the exact order listed above.
+
+> **You usually don't have to create the options by hand.** Helm's
+> `ensureSubStages` builds the "Helm Stage" options (GitHub Projects) / `helm:*`
+> labels (Linear) from `WORKFLOW_STAGES` automatically the first time it writes a
+> stage back (see Step 3.6). Creating the field up front is still recommended for
+> GitHub so the column is visible before the first writeback; for Linear the
+> labels are created on demand.
+
+---
+
+## Step 3.6 — Stage writeback (Helm → tracker)
+
+As of **ADR-033**, stage tracking is **bidirectional**:
+
+- **tracker → store** (existing): a human moving the "Helm Stage" option / Linear
+  `helm:*` label fires a webhook that transitions Helm's store; `sync` (Step 4.5)
+  pulls the same direction for personal accounts.
+- **store → tracker** (new): as items advance inside Helm (agent dispatch, PR-merge
+  webhooks, the release trigger, manual operator endpoints), Helm writes the new
+  stage **back** to the tracker — the "Helm Stage" single-select on GitHub
+  Projects, or the `helm:<stage>` label on Linear. Before this, the tracker showed
+  every item as if nothing had progressed.
+
+What you need to know operationally:
+
+- **Best-effort.** A tracker write that fails (auth, network, item missing) is
+  logged and skipped — it never fails the workflow. The store stays the source of
+  truth, so the store and tracker can drift transiently. Use the backfill command
+  below to reconcile.
+- **Anti-echo.** A stage change that *originated* in the tracker
+  (`triggeredBy` = `webhook:github-projects` / `webhook:linear`) is **not** written
+  back — that would loop. Everything else (agent dispatch, PR-merge, release,
+  manual) is written back.
+- **Scope.** Helm writes the **stage label/field only**. It does **not** auto-close
+  issues or post comments on stage changes (deferred — ADR-033).
+- **Credentials.** Writeback uses the same token as reads: `GITHUB_TOKEN` for
+  GitHub Projects, or the env var named by `issue_tracker.api_key_env` for Linear.
+  The token must have **write** access to the Project / Linear team.
+
+### Reconciling an existing product — `writeback-backfill`
+
+For a product whose items advanced *before* writeback existed (or after a stretch
+of best-effort failures), run the one-shot reconcile. It ensures the stage
+options/labels exist, then writes each store item's current stage to the tracker:
+
+```bash
+# GitHub Projects product (needs GITHUB_TOKEN with project write access)
+pnpm --filter @helm/api writeback-backfill <product-slug>
+
+# Linear product (needs the env var named by issue_tracker.api_key_env)
+pnpm --filter @helm/api writeback-backfill <product-slug>
+```
+
+It prints `Reconciled N/M items` and is best-effort per item (a single failure is
+logged and the rest continue). Unlike `sync` (tracker → store, GitHub-only),
+`writeback-backfill` runs store → tracker and supports **both** providers.
 
 ---
 
