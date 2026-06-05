@@ -135,7 +135,7 @@ change, writes the new stage back to the tracker via `setSubStage`
   per item; per-item failure does not abort (reconciled/failed counts);
   provider-agnostic; empty store; ensure-failure propagates; unsupported
   provider rejected.
-- Migrated route tests assert writeback happens / is skipped: `webhooks` (github
+- Migrated route tests assert writeback happens / is skipped: `webhooks` (GitHub
   `item_updated` anti-echo; `pull_request_merged` writes back), `webhooks-linear`
   (`item_updated` anti-echo), `items` / `release` / `rollback` (writeback on the
   respective transition). Existing transition assertions stay green.
