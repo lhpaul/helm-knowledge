@@ -1,121 +1,105 @@
 rules:
-  - id: "adr-status-must-match-lifecycle"
-    name: "ADR status must match documented lifecycle"
+  - id: "adr-status-accepted-in-prs"
+    name: "Mark new ADRs as Accepted in PRs"
     type: llm
     severity: warning
     category: "patterns"
-    message: "ADR Status must be one of the values in decisions/README.md: Proposed, Accepted, Deprecated, or Superseded by ADR-NNN. New ADRs awaiting review may use Proposed; ADRs recording finalized planning decisions should use Accepted."
+    message: "Set status to Accepted when adding a new ADR in a PR because the PR records a decision that was already made."
     llm:
-      prompt: "ADR Status must be one of the values in decisions/README.md: Proposed, Accepted, Deprecated, or Superseded by ADR-NNN. New ADRs opened for human review may use Proposed; ADRs recording decisions already finalized in planning should use Accepted. Flag invalid or undocumented status strings."
-  - id: "follow-adr-file-and-metadata-format"
-    name: "Use ADR naming and metadata format"
+      prompt: "Set status to Accepted when adding a new ADR in a PR because the PR records a decision that was already made."
+  - id: "adr-required-sections"
+    name: "Include the standard ADR sections"
     type: llm
     severity: warning
     category: "patterns"
-    message: "Create ADR files under decisions/ using NNN-kebab-case-title.md with top metadata lines for Status and Date, and never reuse ADR numbers."
+    message: "Write ADRs with Context, Decision or Decisions, Consequences, Alternatives considered, and Revisit when, plus References when needed."
     llm:
-      prompt: "Create ADR files under decisions/ using NNN-kebab-case-title.md with top metadata lines for Status and Date, and never reuse ADR numbers."
-  - id: "include-required-adr-sections"
-    name: "Include standard ADR sections"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "ADRs must include Context, Decision/Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
-    llm:
-      prompt: "ADRs must include Context, Decision or Decisions, Consequences, Alternatives considered, and Revisit when sections, with References when applicable."
-  - id: "avoid-adr-timeline-contradictions"
-    name: "Avoid ADR rules that contradict workflow phase order"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "When drafting ADR text or governance rules about checks, approvals, artifacts, or cleanup, tie each constraint to one phase: pre-merge (before landing on main), merge (PR merge/deploy hook), or post-publish (artifact or release exists publicly). Violations include requiring pre-merge checks against artifacts only created post-publish, or implying deployment/production approvals occur before dates or events documented as occurring at publish."
-    llm:
-      prompt: "When reviewing ADRs and related rules, classify claims into phases: pre-merge, merge, post-publish—then flag timeline contradictions. Examples to catch: asserting pre-merge validation of bundles or manifests that ADR narrative only creates post-publish; rules that require approvals or teardown tied to artifacts before the ADR establishes those artifacts exist; cleanup or rollout steps labeled as blocking merge while depending on outputs only available after publish. Prefer explicit phase labels and rewrite vague \"when\" wording into one of these phases."
-  - id: "keep-knowledge-in-canonical-buckets"
-    name: "Use canonical knowledge directories"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "Place new durable knowledge only in the defined top-level buckets (`strategy`, `discovery`, `learnings`, `pulse-reports`, `specs`, `plans`, `wiki`, `ux-options`) and document intent via README stubs instead of creating ad-hoc folders."
-    llm:
-      prompt: "Place new durable knowledge only in the defined top-level buckets (`strategy`, `discovery`, `learnings`, `pulse-reports`, `specs`, `plans`, `wiki`, `ux-options`) and document intent via README stubs instead of creating ad-hoc folders."
-  - id: "scope-doc-claims-to-current-state"
-    name: "Scope documentation claims precisely"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "When docs describe behavior or cleanup timing, avoid absolute statements and condition claims to the current implementation state to prevent contradictions."
-    llm:
-      prompt: "When docs describe behavior or cleanup timing, avoid absolute statements and condition claims to the current implementation state to prevent contradictions."
-  - id: "describe-race-scenarios-and-mitigation-explicitly"
-    name: "Document concurrency risks explicitly"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "When documenting concurrent workflows, state the exact conflict scenario and the specific mitigation strategy rather than vague race-condition language."
-    llm:
-      prompt: "When documenting concurrent workflows, state the exact conflict scenario and the specific mitigation strategy rather than vague race-condition language."
-  - id: "state-risks-without-minimizing-language"
-    name: "Use accurate risk wording"
-    type: llm
-    severity: warning
-    category: "patterns"
-    message: "Document known limitations with realistic likelihood and impact, avoiding minimizing terms that understate plausible collision or overwrite risks."
-    llm:
-      prompt: "Document known limitations with realistic likelihood and impact, avoiding minimizing terms that understate plausible collision or overwrite risks."
-  - id: "onboarding-steps-must-match-real-api-behavior"
-    name: "Keep onboarding steps API-accurate"
-    type: llm
-    severity: warning
-    category: "security"
-    message: "Onboarding documentation must only include validation and seed steps that match current API behavior for the intended product context, or explicitly caveat unsafe paths."
-    llm:
-      prompt: "Onboarding documentation must only include validation and seed steps that match current API behavior for the intended product context, or explicitly caveat unsafe paths."
-  - id: "markdown-fenced-blocks-must-specify-language"
-    name: "Add language tags to fenced code blocks"
+      prompt: "Write ADRs with Context, Decision or Decisions, Consequences, Alternatives considered, and Revisit when, plus References when needed."
+  - id: "allow-decision-or-decisions-heading"
+    name: "Use Decision or Decisions heading"
     type: llm
     severity: warning
     category: "style"
-    message: "Every fenced code block in Markdown must include an explicit language identifier such as bash, yaml, markdown, or text."
+    message: "Use either Decision or Decisions for the ADR section title because both are valid in this repo."
     llm:
-      prompt: "Every fenced code block in Markdown must include an explicit language identifier such as bash, yaml, markdown, or text."
-  - id: "preserve-markdown-table-column-integrity"
-    name: "Keep Markdown table cells valid"
+      prompt: "Use either Decision or Decisions for the ADR section title because both are valid in this repo."
+  - id: "adr-file-naming-sequence"
+    name: "Use numbered ADR file names"
     type: llm
     severity: warning
     category: "style"
-    message: "In Markdown tables, escape or wrap special characters in inline code (such as pipes) so table column structure remains valid."
+    message: "Name ADR files as decisions/NNN-kebab-case.md with the next unused number and never reuse an ADR number."
     llm:
-      prompt: "In Markdown tables, escape or wrap special characters in inline code (such as pipes) so table column structure remains valid."
-  - id: "use-cross-platform-shell-commands-in-docs"
-    name: "Use cross-platform shell commands"
+      prompt: "Name ADR files as decisions/NNN-kebab-case.md with the next unused number and never reuse an ADR number."
+  - id: "fenced-code-blocks-need-language"
+    name: "Tag fenced code blocks with a language"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "Add a language tag to every fenced code block, such as text, bash, or console."
+    llm:
+      prompt: "Add a language tag to every fenced code block, such as text, bash, or console."
+  - id: "escape-pipes-in-markdown-tables"
+    name: "Escape pipe characters in tables"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "Escape or encode pipe characters inside markdown table cells so the table keeps the right column count."
+    llm:
+      prompt: "Escape or encode pipe characters inside markdown table cells so the table keeps the right column count."
+  - id: "use-github-capitalization"
+    name: "Capitalize GitHub consistently"
+    type: llm
+    severity: warning
+    category: "style"
+    message: "Write GitHub with a capital H in docs and runbooks."
+    llm:
+      prompt: "Write GitHub with a capital H in docs and runbooks."
+  - id: "use-cross-platform-commands-in-docs"
+    name: "Use cross-platform commands in docs"
     type: llm
     severity: warning
     category: "patterns"
-    message: "Commands documented for contributors must work on both macOS and Linux, or provide clearly documented alternatives when platform-specific flags are required."
+    message: "Use commands that work on both macOS and Linux, or provide both command variants."
     llm:
-      prompt: "Commands documented for contributors must work on both macOS and Linux, or provide clearly documented alternatives when platform-specific flags are required."
-  - id: "use-exact-canonical-path-and-identifier-strings"
-    name: "Use exact canonical literals"
+      prompt: "Use commands that work on both macOS and Linux, or provide both command variants."
+  - id: "include-pr-number-in-adr-references"
+    name: "Reference concrete PR numbers"
     type: llm
     severity: warning
     category: "patterns"
-    message: "Documentation examples must preserve exact canonical path patterns and identifier formats (for example .helm paths, product slug format, and workflow stage labels) without typos."
+    message: "When an ADR cites a related PR, include the full repo and PR number like owner/repo#123."
     llm:
-      prompt: "Documentation examples must preserve exact canonical path patterns and identifier formats (for example .helm paths, product slug format, and workflow stage labels) without typos."
-  - id: "onboarding-runbooks-require-verification-commands"
-    name: "Include executable verification in runbooks"
+      prompt: "When an ADR cites a related PR, include the full repo and PR number like owner/repo#123."
+  - id: "document-conditional-claims-clearly"
+    name: "Scope conditional behavior clearly"
     type: llm
     severity: warning
     category: "patterns"
-    message: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
+    message: "Do not state behavior as always true when it depends on a feature or phase that is not always active."
     llm:
-      prompt: "Changes to onboarding or operational runbooks must include concrete verification commands and expected outcomes, not only procedural steps."
-  - id: "sync-haystack-governance-files"
-    name: "Update Haystack config files together"
+      prompt: "Do not state behavior as always true when it depends on a feature or phase that is not always active."
+  - id: "state-concurrency-mitigation-explicitly"
+    name: "Explain race handling explicitly"
+    type: llm
+    severity: warning
+    category: "performance"
+    message: "When docs describe concurrent work in shared paths, state the conflict model and the mitigation clearly."
+    llm:
+      prompt: "When docs describe concurrent work in shared paths, state the conflict model and the mitigation clearly."
+  - id: "preserve-canonical-literals-in-doc-examples"
+    name: "Keep exact field and stage literals"
     type: llm
     severity: warning
     category: "patterns"
-    message: "When changing review automation governance, keep `.haystack/pr-rules.yml`, `.haystack/review-policy.md`, and `.haystack.json` synchronized in the same change."
+    message: "Use the exact canonical field names and stage values in docs examples instead of paraphrasing them."
     llm:
-      prompt: "When changing review automation governance, keep `.haystack/pr-rules.yml`, `.haystack/review-policy.md`, and `.haystack.json` synchronized in the same change."
+      prompt: "Use the exact canonical field names and stage values in docs examples instead of paraphrasing them."
+  - id: "document-error-to-http-mapping-with-exceptions"
+    name: "Document error to HTTP mapping with exceptions"
+    type: llm
+    severity: warning
+    category: "patterns"
+    message: "When documenting API error behavior, list the error class to HTTP status mapping and any route-level exceptions."
+    llm:
+      prompt: "When documenting API error behavior, list the error class to HTTP status mapping and any route-level exceptions."
