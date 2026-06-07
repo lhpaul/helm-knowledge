@@ -148,6 +148,13 @@ workflow:
                                # the release webhook is a no-op. The state
                                # machine is unchanged either way — this only
                                # gates whether items ever reach `released`.
+  # native_state_map:          # OPTIONAL (Linear-only, ADR-035). Map a Helm stage
+  #   merged: "<state-id>"     # to an exact Linear workflow-state id, overriding
+  #   released: "<state-id>"   # the by-type default (ADR-034) for that stage.
+                               # Use it when the team has >1 state of a type (e.g.
+                               # distinct Merged/Released). Discover ids with
+                               # `pnpm --filter @helm/api list-linear-states <slug>`.
+                               # Unmapped stages keep the by-type default.
 
 specialists:
   # Specialist IDs are kebab-case (ADR-022). Older configs used snake_case
@@ -407,10 +414,10 @@ stayed at `Backlog`, so a board viewed by the native column showed no progress.
 - **By type, not name.** Helm matches on the Linear state `type`
   (`backlog | unstarted | started | completed | cancelled | triage`), so renaming
   "In Development" in your team settings does **not** break the mirroring.
-- **Multiple states of a type (caveat).** If a team has more than one `started`
-  (or `completed`) state, Helm picks the **first by position**. A per-product
-  override to choose a specific state is a future hook — not built yet (AF has
-  exactly one state of each type, so the choice is unambiguous).
+- **Multiple states of a type.** If a team has more than one `started` (or
+  `completed`) state, the by-type default picks the **first by position**. To
+  target a specific state per stage, use the **per-stage override**
+  (`workflow.native_state_map`, ADR-035 — see below).
 - **Independent best-effort.** The native-state write is separate from the label
   write: each has its own timeout, and a failure in one never blocks the other.
   The label is the primary signal; the native Status is a secondary mirror. The
@@ -418,6 +425,45 @@ stayed at `Backlog`, so a board viewed by the native column showed no progress.
 - **GitHub Projects.** The native Status field there (a project single-select) is
   a deferred follow-up; GitHub products get the "Helm Stage" field only and skip
   native-state mirroring cleanly.
+
+### Per-stage native-state override (Linear, ADR-035)
+
+Use this when your team has **more than one state of a Linear type** and the
+by-type default would collapse two Helm stages onto the same column. The
+canonical case: a team with distinct **`Merged`** and **`Released`**
+`completed`-type states (modelling the H5 merged/released split). By type, both
+`merged` and `released` resolve to the *first* completed state, so `released`
+items land on `Merged`. The override maps each stage to an exact native state.
+
+`workflow.native_state_map` maps a Helm stage to a Linear workflow-state **id**:
+
+```yaml
+workflow:
+  # … stages_enabled, gates, final_stage …
+  native_state_map:
+    merged: "a1b2c3d4-…"      # the team's "Merged" state id
+    released: "e5f6a7b8-…"    # the team's "Released" state id
+  # unmapped stages → by-type default (ADR-034): pre-merged → started-type
+```
+
+- **By id, not name.** The value is the Linear workflow-state **id** (a UUID),
+  stable across display-name renames. Any Helm stage may be mapped — not just
+  `merged`/`released` (a team with two `started` states could map
+  `code-review`/`in-development` too).
+- **Discover the ids** with the helper (no-op for non-Linear products):
+
+  ```bash
+  pnpm --filter @helm/api list-linear-states <product-slug>
+  # prints:  <id>  <name>  (<type>)   for every team workflow state
+  ```
+
+  Copy the relevant ids into `native_state_map`.
+- **Fallback preserved.** Unmapped stages, and products without a
+  `native_state_map`, keep the ADR-034 by-type behavior exactly — the override is
+  additive and backward-compatible.
+- **Best-effort.** A configured id that isn't a valid state for the team is
+  logged and skipped (the transition still succeeds); the `list-linear-states`
+  helper avoids typos. Linear-only — ignored for GitHub Projects.
 
 ### Reconciling an existing product — `writeback-backfill`
 
@@ -436,8 +482,9 @@ pnpm --filter @helm/api writeback-backfill <product-slug>
 It prints `Reconciled N/M items` and is best-effort per item (a single failure is
 logged and the rest continue). Unlike `sync` (tracker → store, GitHub-only),
 `writeback-backfill` runs store → tracker and supports **both** providers. For
-Linear products it also sets the **native Status** per item (ADR-034) and reports
-how many native states were set (best-effort, independent of the label write).
+Linear products it also sets the **native Status** per item (ADR-034, honoring any
+`native_state_map` override — ADR-035) and reports how many native states were set
+(best-effort, independent of the label write).
 
 ---
 
