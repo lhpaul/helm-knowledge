@@ -142,6 +142,9 @@ can discover the ids.
 
 ## References
 
+- helm PR: lhpaul/helm#49 — implementation (`native_state_map` schema,
+  `setWorkflowStateById`, shared `resolveNativeStateWrite` precedence,
+  `list-linear-states` helper).
 - ADR-034 — Linear native status mirroring / by-type 2-bucket (the default this
   overrides).
 - ADR-033 — tracker writeback / `helm:*` label (the path both extend).
