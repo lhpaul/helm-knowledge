@@ -378,11 +378,46 @@ What you need to know operationally:
   (`triggeredBy` = `webhook:github-projects` / `webhook:linear`) is **not** written
   back — that would loop. Everything else (agent dispatch, PR-merge, release,
   manual) is written back.
-- **Scope.** Helm writes the **stage label/field only**. It does **not** auto-close
-  issues or post comments on stage changes (deferred — ADR-033).
+- **Scope.** Helm writes the **stage label/field** for all providers, plus the
+  **native workflow Status** for Linear (ADR-034, see below). It does **not** post
+  comments on stage changes (deferred — ADR-033).
 - **Credentials.** Writeback uses the same token as reads: `GITHUB_TOKEN` for
   GitHub Projects, or the env var named by `issue_tracker.api_key_env` for Linear.
   The token must have **write** access to the Project / Linear team.
+
+### Native workflow Status mirroring (Linear, ADR-034)
+
+For **Linear products**, Helm additionally drives the team's **native workflow
+Status** (the Status / Kanban column) from the item's stage — not just the
+`helm:<stage>` label. Before this, the label was current but the native Status
+stayed at `Backlog`, so a board viewed by the native column showed no progress.
+
+- **Mapping (2-bucket, by state TYPE).** Helm maps the stage to a Linear state
+  *type*, then picks a concrete state of that type:
+
+  | Helm stage | Linear state type | Typical column |
+  | --- | --- | --- |
+  | `discovery` … `code-review` … `remediation` | `started` | "In Development" |
+  | `merged`, `released` | `completed` | "Completed" (closes the issue) |
+
+  `backlog` and `cancelled` are **never auto-set** — they stay human/initial.
+  An issue Helm hasn't picked up stays in `Backlog`; the moment Helm acts on it
+  (create at `discovery`, or any agent/manual transition) it moves to In
+  Development.
+- **By type, not name.** Helm matches on the Linear state `type`
+  (`backlog | unstarted | started | completed | cancelled | triage`), so renaming
+  "In Development" in your team settings does **not** break the mirroring.
+- **Multiple states of a type (caveat).** If a team has more than one `started`
+  (or `completed`) state, Helm picks the **first by position**. A per-product
+  override to choose a specific state is a future hook — not built yet (AF has
+  exactly one state of each type, so the choice is unambiguous).
+- **Independent best-effort.** The native-state write is separate from the label
+  write: each has its own timeout, and a failure in one never blocks the other.
+  The label is the primary signal; the native Status is a secondary mirror. The
+  same anti-echo rule applies (tracker-originated transitions write neither).
+- **GitHub Projects.** The native Status field there (a project single-select) is
+  a deferred follow-up; GitHub products get the "Helm Stage" field only and skip
+  native-state mirroring cleanly.
 
 ### Reconciling an existing product — `writeback-backfill`
 
@@ -400,7 +435,9 @@ pnpm --filter @helm/api writeback-backfill <product-slug>
 
 It prints `Reconciled N/M items` and is best-effort per item (a single failure is
 logged and the rest continue). Unlike `sync` (tracker → store, GitHub-only),
-`writeback-backfill` runs store → tracker and supports **both** providers.
+`writeback-backfill` runs store → tracker and supports **both** providers. For
+Linear products it also sets the **native Status** per item (ADR-034) and reports
+how many native states were set (best-effort, independent of the label write).
 
 ---
 
