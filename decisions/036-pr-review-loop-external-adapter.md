@@ -38,7 +38,7 @@ The template's Haystack wrapper (`haystack-reviewer.sh`) already implements the
 correct semantic (`RESULT=clean` when `BLOCKING_COUNT=0`). Known gaps there
 (structured advisory output, disposition triggers, false-positive catalog) are
 tracked in [ai-dev-framework-template #1112](https://github.com/lhpaul/ai-dev-framework-template/issues/1112)
-(sub-items #1113–#1118); Helm should implement the **target contract** and stay
+(sub-items ai-dev-framework-template#1113–#1118); Helm should implement the **target contract** and stay
 aligned as the template catches up.
 
 ---
@@ -99,7 +99,8 @@ All providers map to a shared shape before the loop or remediator sees them:
 
 ```typescript
 type NormalizedFinding = {
-  id: string;           // stable ledger key: hash(provider, path, summary)
+  id: string;           // stable ledger key: provider-native id when available,
+                        // else canonical signature (provider, path, category, line)
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
   blocking: boolean;    // adapter decision — not raw bot category alone
   path?: string;
@@ -108,6 +109,10 @@ type NormalizedFinding = {
   fixHint?: string;
 };
 ```
+
+The `id` must stay stable across review cycles so `no_progress_cycles` and advisory
+disposition tracking do not churn when a provider rewrites `summary` text. Do **not**
+hash free-form summary prose into the ledger key.
 
 Only `blocking: true` findings trigger `code-remediator` or count as loop blockers.
 Advisories are recorded for summary/disposition, not re-triage loops.
@@ -121,12 +126,17 @@ Per `code-review` dispatch (or dedicated `review-loop` job):
 2. If CRITICAL/HIGH from security/test → code-remediator (existing ADR-019 gate)
 3. Repeat 1–2 until internal clean or max_cycles / stop_rule escalates
 4. External: ExternalReviewAdapter (Haystack v1)
-5. If external blockers → code-remediator with normalized findings → back to 4
+5. If external blockers → code-remediator with normalized findings → back to 1
 6. Stop: clean (no blockers), escalate (human), or skipped (external unavailable)
 ```
 
+Returning to step 1 after external remediation re-runs internal fanout so fixes
+for external blockers cannot bypass internal reviewers. The same `max_cycles` /
+`stop_rule` budget applies across internal and external-driven iterations.
+
 **In scope v1:** bounded internal re-review (closes ADR-019 "Revisit When" for
-the fanout↔remediate cycle) + one external pass with blocker-driven remediation.
+the fanout↔remediate cycle) + external review with blocker-driven remediation
+that loops back through internal fanout.
 
 **Out of scope v1:** multi-platform external sequence, draft/ready GitHub phases,
 CI loop orchestration, merge automation, reviewer-loop CI guard workflow.
@@ -232,7 +242,7 @@ triage budget. Order may be revisited per product if data shows otherwise.
 
 - `ai-dev-framework-template`: `haystack-reviewer.sh`, `haystack-triage.md`,
   Protocol 93 (advisory dispositions), epic [#1112](https://github.com/lhpaul/ai-dev-framework-template/issues/1112)
-  (T1–T6: #1113–#1118).
+  (T1–T6: ai-dev-framework-template#1113–#1118).
 - Helm: ADR-017, ADR-019, ADR-025; `helm-knowledge/false-positives.md`;
   `helm-knowledge/learnings/2026-06-02-af-pilot-lea-104-arc.md` (Haystack
   stop-rule).
