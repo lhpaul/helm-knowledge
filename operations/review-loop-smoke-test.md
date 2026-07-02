@@ -82,7 +82,7 @@ Expected order per ADR-036:
 3. Repeat 1–2 until internal clean or stop-rule
 4. `HaystackExternalReviewAdapter` — `haystack triage o/r#N --json`
 5. If external blockers → `code-remediator` with normalized findings → back to step 1
-6. Terminal: `done`, `escalated`, or external `skipped` (Haystack unavailable)
+6. Terminal: dispatch `status: done`, loop `escalated: true`, or external `status: skipped` (Haystack unavailable)
 
 ### 4. Record outcome
 
@@ -93,7 +93,8 @@ Expected order per ADR-036:
 | PR | |
 | Scenario (A/B/C) | |
 | Cycles completed | |
-| External result | clean / needs_fixes / skipped / escalate |
+| External adapter result | `clean` / `needs_fixes` / `skipped` / `escalate` (see ADR-036 `ExternalReviewResult`) |
+| Dispatch loop escalated | `escalated: true` on job result (stop-rule or external blockers) |
 | Blocking Haystack ids (if any) | |
 | Pass / Fail | |
 
@@ -125,7 +126,7 @@ Paste the job result JSON or link the dispatch log in [lhpaul/helm#52](https://g
 | Symptom | Likely cause | Action |
 | ------- | -------------- | ------ |
 | External `skipped` / `unavailable` | Haystack CLI missing or `status=none` | Install/auth Haystack; ensure analysis was submitted for the PR |
-| External `escalate` / `pending_timeout` | Analysis still synthesizing after 120s | Re-dispatch after Haystack UI shows complete, or raise `timeout_sec` temporarily |
+| External `status: escalate` (adapter) / dispatch `escalated: true` + `pending_timeout` | Analysis still synthesizing after 120s, or stop-rule fired | Re-dispatch after Haystack UI shows complete, or raise `timeout_sec` temporarily; check job JSON for `escalated: true` |
 | Infinite advisory churn | Treating advisories as blockers | Confirm adapter maps `Rules violation`, `Major` (default), etc. as advisory |
 | `Rules violation` on CHANGELOG | Known Haystack false positive | Do **not** restructure CHANGELOG; dismiss per ADR-036 / template haystack-triage.md |
 
