@@ -3,12 +3,18 @@
 Validates the bounded **internal fanout ↔ remediate ↔ external Haystack** loop on a
 real impl PR for the `helm` product.
 
-**Depends on:** helm #53 (Haystack adapter), helm-knowledge #54 (`review` in
-`.helm/product.yaml`).
+**Depends on:** [lhpaul/helm#58](https://github.com/lhpaul/helm/pull/58) (Haystack adapter), [lhpaul/helm-knowledge#41](https://github.com/lhpaul/helm-knowledge/pull/41) (`review` in `.helm/product.yaml`).
 
 **ADR:** [036-pr-review-loop-external-adapter.md](../decisions/036-pr-review-loop-external-adapter.md)
 
 ---
+
+## Concurrency
+
+Run **one** smoke dispatch at a time per item (`externalId`). Parallel dispatches against
+the same item can race on stage transitions and remediation workspace provisioning.
+If a job is already running, wait for it to finish (or check `GET …/jobs/<jobId>`) before
+starting another dispatch for that item.
 
 ## Prerequisites
 
@@ -91,8 +97,7 @@ Expected order per ADR-036:
 | Blocking Haystack ids (if any) | |
 | Pass / Fail | |
 
-Paste the job result JSON or link the dispatch log in the epic #52 comment when filing
-the smoke-test completion note.
+Paste the job result JSON or link the dispatch log in [lhpaul/helm#52](https://github.com/lhpaul/helm/issues/52) when filing the smoke-test completion note.
 
 ---
 
@@ -130,4 +135,4 @@ the smoke-test completion note.
 
 - Template reference: `ai-dev-framework-template/scripts/development-workflow/haystack-reviewer.sh`
 - Helm adapter: `packages/orchestrator/src/external-review/haystack/`
-- Epic: helm #52
+- Epic: [lhpaul/helm#52](https://github.com/lhpaul/helm/issues/52)
