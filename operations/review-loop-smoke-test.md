@@ -126,7 +126,8 @@ Paste the job result JSON or link the dispatch log in [lhpaul/helm#52](https://g
 | Symptom | Likely cause | Action |
 | ------- | -------------- | ------ |
 | External `skipped` / `unavailable` | Haystack CLI missing or `status=none` | Install/auth Haystack; ensure analysis was submitted for the PR |
-| External `status: escalate` (adapter) / dispatch `escalated: true` + `pending_timeout` | Analysis still synthesizing after 120s, or stop-rule fired | Re-dispatch after Haystack UI shows complete, or raise `timeout_sec` temporarily; check job JSON for `escalated: true` |
+| External `status: escalate` (adapter) / dispatch `escalated: true` + `pending_timeout` | Analysis still synthesizing after 120s, or stop-rule fired | Re-dispatch after Haystack UI shows complete, or raise `timeout_sec` temporarily; check job JSON for `escalated: true` and `escalationReason` (`external_escalate`, `external_skip_evidence`, `external_repeated_skip`) |
+| External `skipped` with configured Haystack | Triage CLI/auth failure while analysis may still be ready | Loop retries up to `no_progress_cycles`; escalates with PR comment if `pr-status` shows `analysisStatus=ready` or after repeated skips |
 | Infinite advisory churn | Treating advisories as blockers | Confirm adapter maps `Rules violation`, `Major` (default), etc. as advisory |
 | `Rules violation` on CHANGELOG | Known Haystack false positive | Do **not** restructure CHANGELOG; dismiss per ADR-036 / template haystack-triage.md |
 
