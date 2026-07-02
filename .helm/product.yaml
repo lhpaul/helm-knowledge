@@ -32,25 +32,43 @@ workflow:
   designer_gate: skip
   qa_gate: skip
 
+review:
+  external:
+    provider: haystack
+    haystack:
+      major_is_blocking: false
+      poll_interval_sec: 15
+      timeout_sec: 120
+  loop:
+    max_cycles: 5
+    stop_rule:
+      no_progress_cycles: 2
+
 specialists:
-  spec_writer:
+  spec-writer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  plan_writer:
+  plan-writer:
     runtime: claude_code
     model: claude-sonnet-4-6
   implementer:
     runtime: claude_code
     model: claude-opus-4-7
-  code_reviewer:
+  code-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  security_reviewer:
+  security-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  test_reviewer:
+  test-reviewer:
     runtime: claude_code
     model: claude-sonnet-4-6
-  remediation:
+  spec-remediator:
+    runtime: claude_code
+    model: claude-sonnet-4-6
+  plan-remediator:
+    runtime: claude_code
+    model: claude-sonnet-4-6
+  code-remediator:
     runtime: claude_code
     model: claude-sonnet-4-6
