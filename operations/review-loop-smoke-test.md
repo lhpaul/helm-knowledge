@@ -104,6 +104,33 @@ Paste the job result JSON or link the dispatch log in [lhpaul/helm#52](https://g
 
 ## Recorded dogfood run
 
+### Run 2 — full dispatch E2E (Scenario A)
+
+| Field | Value |
+| ----- | ----- |
+| Date | 2026-07-02 |
+| Item | `issue_55` |
+| PR | https://github.com/lhpaul/helm/pull/61 |
+| Scenario | A — clean exit |
+| Cycles completed | 1 |
+| External adapter result | `clean` (Haystack rating 5, 0 findings) |
+| Dispatch loop escalated | `false` |
+| Blocking Haystack ids | — |
+| Pass / Fail | **Pass** |
+| Job | `d9481f8c-0cca-45b2-b804-c43f7e210494` — `status: done`, ~5 min wall-clock |
+
+Notes:
+
+- Pilot PR is docs-only (`docs/adr-036-smoke-issue-55.md`); internal reviewers posted
+  code/security/test comments; Haystack returned zero blockers; no Review Loop Summary
+  (expected when external advisories are empty).
+- Local fixes required before green run: `code_repos[].default_branch: develop` (repo
+  default, not `main`), Claude CLI model aliases (`sonnet` / `opus`, not
+  `claude-sonnet-4-6`), and temporarily disabling multi-product registry when
+  `helm-playground-knowledge` still uses legacy specialist IDs.
+
+### Run 1 — adapter-only smoke
+
 | Field | Value |
 | ----- | ----- |
 | Date | 2026-07-01 |
@@ -115,16 +142,15 @@ Paste the job result JSON or link the dispatch log in [lhpaul/helm#52](https://g
 | Blocking Haystack ids | — |
 | Pass / Fail | **Pass** (adapter + Haystack CLI integration verified) |
 
-> Full dispatch E2E (internal fanout → external → remediation) still requires an
-> open `helm/impl/<id>` PR and a `code-review` dispatch — repeat this procedure
-> when the next pilot PR is available.
-
 ---
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Action |
 | ------- | -------------- | ------ |
+| Reviewer fan-out instant `error` (130ms) | Invalid `model` in `product.yaml` (e.g. `claude-sonnet-4-6` not available in Claude CLI) | Use CLI aliases (`sonnet`, `opus`) or a model your CLI accepts; verify with `claude -p ok --print --model <name>` |
+| Reviewer fan-out timeout (~600s) | Diff base wrong (`default_branch: main` while impl PR targets `develop`) or huge monorepo scan | Set `code_repos[].default_branch` to the repo's integration branch; add reviewer `extra_hints` to scope smoke PRs |
+| `Product not found: helm` with multi-product registry | A sibling product's `product.yaml` fails validation (legacy specialist IDs) | Fix or temporarily exclude the broken entry from `.helm/products.yaml` |
 | External `skipped` / `unavailable` | Haystack CLI missing or `status=none` | Install/auth Haystack; ensure analysis was submitted for the PR |
 | External `status: escalate` (adapter) / dispatch `escalated: true` + `pending_timeout` | Analysis still synthesizing after 120s, or stop-rule fired | Re-dispatch after Haystack UI shows complete, or raise `timeout_sec` temporarily; check job JSON for `escalated: true` and `escalationReason` (`external_escalate`, `external_skip_evidence`, `external_repeated_skip`) |
 | External `skipped` with configured Haystack | Triage CLI/auth failure while analysis may still be ready | Loop retries up to `no_progress_cycles`; escalates with PR comment if `pr-status` shows `analysisStatus=ready` or after repeated skips |
