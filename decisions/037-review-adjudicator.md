@@ -3,7 +3,7 @@
 **Date:** 2026-07-09
 **Status:** Accepted
 **Supersedes:** —
-**Related:** ADR-017 (Reviewer Fan-Out), ADR-019 (Remediation Gate), ADR-025 (Remediation Covers All Reviewers), ADR-036 (PR Review Loop)
+**Related:** ADR-017 (Reviewer Fan-Out), ADR-019 (Remediation Gate), ADR-025 (Remediation Covers All Reviewers), ADR-036 (PR Review Loop — lhpaul/helm-knowledge#39)
 
 ---
 
