@@ -41,6 +41,8 @@ review:
       timeout_sec: 120
   loop:
     max_cycles: 5
+    adjudication:
+      enabled: true
     stop_rule:
       no_progress_cycles: 2
 
@@ -70,5 +72,8 @@ specialists:
     runtime: claude_code
     model: sonnet
   code-remediator:
+    runtime: claude_code
+    model: sonnet
+  review-adjudicator:
     runtime: claude_code
     model: sonnet
