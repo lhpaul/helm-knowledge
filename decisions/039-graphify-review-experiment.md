@@ -65,13 +65,14 @@ exercises the review loop and has multi-package blast-radius risk
    graphify extract .
    ```
 
-2. For **2–3 real impl PRs** (open or recently reviewed), manually produce a
-   **PR impact note**: changed symbols → `graphify path` / neighbors / PR
-   impact subgraph.
-3. Compare that note to what the Helm reviewers (and Haystack, if present)
-   actually flagged on the same PR.
-4. Record outcomes in this ADR's Consequences / experiment log (or a linked
-   operations note) before any productization proposal.
+2. For **2–3 real impl PRs** (open or recently reviewed), produce a
+   **timestamped PR impact note** from the graph only (changed symbols →
+   `graphify path` / neighbors / PR impact subgraph). Save the note with a
+   generation timestamp **before** opening Helm reviewer comments or Haystack
+   results for that PR (avoids hindsight bias on the “not flagged” criterion).
+3. Only after the note is saved, open Helm/Haystack findings and compare.
+4. Record outcomes in this ADR's experiment log (or a linked operations note)
+   before any productization proposal.
 
 **Explicit non-goals for the experiment:**
 
@@ -99,6 +100,12 @@ The experiment **passes** only if **all** of the following are true:
 
 If any criterion fails, **stop**. Do not productize. Mark this ADR
 `Deprecated` with a one-paragraph post-mortem.
+
+If the result is **Inconclusive** (e.g. sample too small, tool failure, or
+ambiguous human verdicts), **do not productize**. Either (a) extend the pilot
+**once** with a written rationale and the same success criteria, or (b) mark
+this ADR `Deprecated` with a one-paragraph post-mortem. A second inconclusive
+outcome must deprecate — no open-ended re-runs.
 
 ### 3. If the experiment passes — only then propose a thin productization
 
@@ -169,7 +176,9 @@ far beyond the thin wedge.
 
 ## Revisit when
 
-- The experiment completes (pass → productization ADR; fail → deprecate this).
+- The experiment completes (pass → productization ADR; fail or second
+  inconclusive → deprecate this; first inconclusive → one documented extension
+  or deprecate).
 - Review miss post-mortems repeatedly cite "changed X, broke unseen caller Y"
   after ADR-027 / ADR-037 are in place.
 - A product repo grows large enough that undirected exploration routinely hits
@@ -181,11 +190,13 @@ far beyond the thin wedge.
 
 ## Experiment log (fill in during the pilot)
 
-| PR | Graphify finding | Caught by Helm loop? | Caught by Haystack? | Human verdict | Notes |
-| --- | --- | --- | --- | --- | --- |
-| | | | | | |
+**Run metadata (once per pilot):** Graphify version · extract duration ·
+repo base SHA (`develop` or checkout used for the graph)
+
+| PR | Head SHA | Note timestamp (UTC) | Graphify finding | Caught by Helm loop? | Caught by Haystack? | Human verdict | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| | | | | | | | |
 
 **Outcome:** _pending — Pass / Fail / Inconclusive_
 
 **Operator:** _TBD_
-)
