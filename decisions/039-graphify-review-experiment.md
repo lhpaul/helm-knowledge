@@ -1,7 +1,7 @@
-# ADR-039: Graphify experiment for review blast-radius (candidate)
+# ADR-039: Graphify experiment for review blast-radius
 
 **Date:** 2026-07-12
-**Status:** Proposed
+**Status:** Accepted
 **Supersedes:** —
 **Related:** ADR-017 (Reviewers Foundation), ADR-018 (Real Reviewers), ADR-027 (Contract Drift Validation), ADR-036 (PR Review Loop External Adapter), ADR-037 (Review Adjudicator), ADR-038 (Sticky Finding Progress)
 
@@ -42,8 +42,9 @@ review workspace, graph freshness on shallow clones, MCP/CLI wiring, another
 failure surface when reviews flake) is unjustified until we prove a repeatable
 quality win on a real product.
 
-This ADR does **not** accept Graphify. It accepts a **bounded experiment** with
-kill criteria.
+This ADR does **not** accept Graphify as a Helm dependency. **Accepted** here
+means we authorize a **bounded experiment** with kill criteria — not product
+integration.
 
 ---
 
@@ -57,8 +58,13 @@ exercises the review loop and has multi-package blast-radius risk
 
 **Scope of the experiment (thin wedge only):**
 
-1. Build a code-only graph once on a recent `develop` (or impl) checkout:
-   `graphify extract .` (AST only; no docs/media semantic pass required).
+1. Build a code-only graph once on a recent `develop` (or impl) checkout
+   (AST only; no docs/media semantic pass required):
+
+   ```bash
+   graphify extract .
+   ```
+
 2. For **2–3 real impl PRs** (open or recently reviewed), manually produce a
    **PR impact note**: changed symbols → `graphify path` / neighbors / PR
    impact subgraph.
