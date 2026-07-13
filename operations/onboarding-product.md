@@ -509,6 +509,20 @@ gh project item-add <project-number> \
   --url https://github.com/<org>/<repo>/issues/<issue-number>
 ```
 
+For the **Helm product backlog** (Project #3), prefer the helper which does both
+steps and sets **Type**:
+
+```bash
+./scripts/create-helm-backlog-issue.sh --title "…" --body "…" --type Workflow
+```
+
+See `operations/helm-backlog.md`.
+
+> **Also enable Project auto-add (UI):** Project → … → Workflows →
+> *Auto-add to project* → when an issue is opened in `lhpaul/helm` (and
+> optionally `helm-knowledge`). Until that is on, CLI `item-add` (or the helper)
+> is mandatory or new issues will be invisible on the board.
+
 ### Option B — Convert existing Draft Issues to real Issues
 
 If you already have Draft Issues in the Project, convert them before syncing.

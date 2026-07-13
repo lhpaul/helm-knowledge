@@ -28,7 +28,9 @@ workflow:
     - in-development
     - code-review
     - remediation
+    - merged
     - released
+  # final_stage default is released (ADR-032): impl merge → merged, ship → released
   designer_gate: skip
   qa_gate: skip
 
