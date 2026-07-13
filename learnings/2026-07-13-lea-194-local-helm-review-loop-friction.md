@@ -30,8 +30,9 @@ LEA-194 ran end-to-end on Helm (spec → plan → impl → review loop) against 
   allowlists, currency-agnostic pending flags) should live in the **product
   knowledge repo**; Helm should prefer secure defaults and not re-ask settled
   fingerprints.
-- Early artifact review (ADR-040) is still missing — spec/plan still need
-  operator remediator prompts + Haystack FP dismissals for sequential
+- Early artifact review ([ADR-040](../decisions/040-early-artifact-review-loop.md))
+  is decided, but its **implementation/automation is still missing** — spec/plan
+  still need operator remediator prompts + Haystack FP dismissals for sequential
   Helm artifact PRs.
 
 ## Why it matters
@@ -49,8 +50,15 @@ counters also reset per dispatch (see helm#65), masking non-convergence.
 
 ## Related artifacts
 
-- Backlog (Helm): #69 webhooks/transitions, #70 auto re-dispatch, #71 ADR-040,
-  #72 persist product_decision, #73 secure-default adjudicator; existing #65
-- Backlog (Leasity): LEA-204 payment allowlist doctrine, LEA-205 UF pending doctrine
-- ADR-040 early artifact review loop
+- Backlog (Helm):
+  [#69](https://github.com/lhpaul/helm/issues/69) webhooks/transitions,
+  [#70](https://github.com/lhpaul/helm/issues/70) auto re-dispatch,
+  [#71](https://github.com/lhpaul/helm/issues/71) ADR-040 implementation,
+  [#72](https://github.com/lhpaul/helm/issues/72) persist product_decision,
+  [#73](https://github.com/lhpaul/helm/issues/73) secure-default adjudicator;
+  existing [#65](https://github.com/lhpaul/helm/issues/65)
+- Backlog (Leasity):
+  [LEA-204](https://linear.app/lh-paul/issue/LEA-204) payment allowlist doctrine,
+  [LEA-205](https://linear.app/lh-paul/issue/LEA-205) UF pending doctrine
+- [ADR-040](../decisions/040-early-artifact-review-loop.md) early artifact review loop
 - Impl PR: https://github.com/lhpaul/leasity-tenants/pull/14
