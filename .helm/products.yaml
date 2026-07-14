@@ -9,4 +9,3 @@
 
 products:
   - path: .                              # this repo (helm-knowledge → product slug: helm)
-  - path: ../helm-playground-knowledge  # sibling repo (product slug: helm-playground)
