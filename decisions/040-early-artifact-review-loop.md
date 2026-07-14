@@ -1,7 +1,7 @@
 # ADR-040: Early artifact review loop (spec / plan)
 
 **Date:** 2026-07-12
-**Status:** Proposed
+**Status:** Accepted
 **Supersedes:** — (amends ADR-024 auto-dispatch rule; reuses ADR-036 loop machinery)
 **Related:** ADR-024 (spec/plan remediators), ADR-036 (PR review loop), ADR-037
 (adjudicator), ADR-038 (sticky progress), LEA-194 pilot

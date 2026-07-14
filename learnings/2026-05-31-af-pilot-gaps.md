@@ -122,8 +122,9 @@ en el roadmap, después de cerrar el bloque I (iteración y readiness).
 
 ## Related artifacts
 
-- `11-ESTADO-Y-ROADMAP-RECONCILIADO.md` (cerebro LH) — sección "Gaps identificados
-  durante el piloto Arriendo Fácil".
+- Living reconciled roadmap (design docs):
+  `/Users/lhpaul/Documents/LH/Negocios/Proyectos/Helm/agent-comms/ROADMAP.md`
+  — section "Gaps identified during the Arriendo Fácil pilot".
 - `decisions/005-agent-runtime-interface.md` — ADR original del runtime, base
   sobre la que apoyamos los remediators.
 - `decisions/019-reviewers-and-remediation.md` (ADR-019) — patrón del
