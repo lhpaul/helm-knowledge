@@ -510,9 +510,11 @@ gh project item-add <project-number> \
 ```
 
 For the **Helm product backlog** (Project #3), prefer the helper which does both
-steps and sets **Type**:
+steps and sets **Type**. Run it from the **Helm app repo root** (`lhpaul/helm`),
+not from this knowledge repo:
 
 ```bash
+cd <path-to-helm-repo>
 ./scripts/create-helm-backlog-issue.sh --title "…" --body "…" --type Workflow
 ```
 
