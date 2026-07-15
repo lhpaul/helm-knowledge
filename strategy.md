@@ -1,7 +1,7 @@
 # Helm Strategy
 
 - **Status**: Active
-- **Last updated**: 2026-05-22
+- **Last updated**: 2026-07-14
 
 ## Target problem
 
@@ -34,12 +34,13 @@ reviewable, while Helm automates the execution and coordination around them.
 
 ## Active tracks
 
-- Stabilize v0 workflow orchestration: product registry, item stages, specialist
-  dispatch, and workdir handling.
-- Make the knowledge repo the product's durable memory: strategy, discovery,
-  specs, plans, ADRs, learnings, wiki, pulse reports, and retrospectives.
-- Reach MOME pilot readiness by preserving agent-hq parity while adding formal
-  Spec -> Plan -> Dev quality gates.
+- Harden the PR review loop (ADR-036–040): auto-dispatch, sticky product
+  decisions, early artifact (spec/plan) loops, secure-default adjudication.
+  Backlog: GitHub Project #3 (`operations/helm-backlog.md`).
+- Keep dogfood evidence flowing via Arriendo Fácil (Linear LEA) while the
+  Helm framework backlog stays on Project #3.
+- Reach MOME pilot readiness (Block G): setup runbook → shadow pilot →
+  hardening → cutover, preserving agent-hq parity plus Spec → Plan → Dev gates.
 
 ## Key metrics
 
@@ -56,4 +57,4 @@ reviewable, while Helm automates the execution and coordination around them.
 - Full UX Lab implementation.
 - Full QA regression gate.
 - Sentry-driven incident repair loop.
-- Non-Claude-Code runtimes beyond interface readiness.
+- Additional runtimes beyond Claude Code + Codex CLI (interface already exists).

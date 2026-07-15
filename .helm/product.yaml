@@ -28,7 +28,9 @@ workflow:
     - in-development
     - code-review
     - remediation
+    - merged
     - released
+  # final_stage default is released (ADR-032): impl merge → merged, ship → released
   designer_gate: skip
   qa_gate: skip
 
@@ -46,34 +48,36 @@ review:
     stop_rule:
       no_progress_cycles: 2
 
+# Codex headless bills against the ChatGPT subscription (~$0 marginal).
+# Claude Code `claude -p` (Helm's ClaudeCodeRuntime) is metered API — see ADR-021.
 specialists:
   spec-writer:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   plan-writer:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   implementer:
-    runtime: claude_code
-    model: opus
+    runtime: codex
+    model: gpt-5.5
   code-reviewer:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   security-reviewer:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   test-reviewer:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   spec-remediator:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   plan-remediator:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
   code-remediator:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.5
   review-adjudicator:
-    runtime: claude_code
-    model: sonnet
+    runtime: codex
+    model: gpt-5.4-mini
