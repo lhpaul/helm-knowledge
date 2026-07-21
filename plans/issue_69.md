@@ -15,9 +15,9 @@ Add a durable merge-to-transition reconciliation path for Helm artifact PRs in l
    - Keep the helper focused on read-only state so it can be reused by both automatic reconciliation and operator recovery.
 
 3. Route the normal local/dev merge path through the reconciliation service.
-   - When Helm observes a merged artifact PR, compute the expected item stage from the persisted item/PR relationship and the artifact type.
+   - When Helm observes a merged artifact PR, compute the expected item stage from the persisted item/PR relationship and the artifact type, then require the item to still be in the valid predecessor stage for that transition before writing anything.
    - Reuse the existing transition service so the same progression rules and history format remain in force.
-   - Add an idempotency guard that checks the item’s current stage and recent transition history before writing anything, so repeating the same merge reconciliation becomes a no-op.
+   - Replace the current-stage/recent-history soft guard with a persistence-backed atomic conditional transition keyed by `(repository, pull_request_id, expected_stage)` or an equivalent durable uniqueness / compare-and-set on item state, so repeating the same merge reconciliation becomes a no-op and concurrent attempts cannot both append history.
 
 4. Add an explicit recovery path for operators when automatic reconciliation is unavailable or fails.
    - Expose a dedicated API surface that can reconcile an item from current pull request state without manual history editing.
@@ -25,8 +25,8 @@ Add a durable merge-to-transition reconciliation path for Helm artifact PRs in l
    - Document when to use recovery: webhook delivery unavailable, a local/dev merge was missed, or a previous automatic attempt failed before the item advanced.
 
 5. Harden the overlap behavior between automatic reconciliation and recovery.
-   - Protect the transition write with a compare-before-write or transactional check so only the first successful transition can advance the item.
-   - If two attempts race, the loser should return an idempotent no-op or an explicit already-advanced result, but it must not append a second history entry.
+   - Protect the transition write with the same persistence-backed conditional transition keyed by `(repository, pull_request_id, expected_stage)` so only one path can advance the item from the valid predecessor stage.
+   - If two attempts race, the loser should return an idempotent already-advanced no-op or reject, but it must not append a second history entry.
    - Make repeated reconciliation of the same merged PR safe after success, even if the operator replays the recovery path later.
 
 6. Add focused tests around the happy path, repeat reconciliation, and race safety.
@@ -47,7 +47,8 @@ Add a durable merge-to-transition reconciliation path for Helm artifact PRs in l
 
 ## Test Strategy
 - Unit tests for the reconciliation service:
-  - A merged `helm/spec/*`, `helm/plan/*`, or `helm/impl/*` PR advances the matching item to the expected next stage.
+  - A merged `helm/spec/*`, `helm/plan/*`, or `helm/impl/*` PR advances the matching item to the expected next stage only when the item is in the valid predecessor stage.
+  - Out-of-order, behind, or ahead-of-stage item state for the derived artifact transition is a no-op or reject and does not write history.
   - Re-running reconciliation for the same merged PR after success is a no-op.
   - A stale or already-advanced item does not produce a duplicate history entry.
 
@@ -61,10 +62,11 @@ Add a durable merge-to-transition reconciliation path for Helm artifact PRs in l
 
 - Concurrency / overlap tests:
   - Simulate automatic reconciliation and operator recovery racing on the same merged PR.
-  - Assert that only the first successful transition writes history and the second path observes an already-advanced no-op or reject.
+  - Assert that only one persistence-backed conditional transition succeeds for the same `(repository, pull_request_id, expected_stage)` key.
+  - Assert that the losing path observes an already-advanced no-op or reject and no second history entry is written.
 
 ## Risks / Open Questions
 - The exact source of item-to-PR linkage may already exist in the current codebase, or it may need a small helper to be extracted before the reconciler can compute the expected stage cleanly.
 - The recovery surface could be an API endpoint, a CLI command, or both; the plan assumes an API endpoint first because it is the most direct operator path in local/dev, but the final implementation should follow the repo’s existing operator surfaces.
-- The transition guard needs to fit the existing persistence model without changing the workflow state machine itself.
+- The transition guard needs to fit the existing persistence model via a durable conditional write keyed by `(repository, pull_request_id, expected_stage)` without changing the workflow state machine itself.
 - If there are edge cases where multiple merged PRs map to the same item over time, the reconciliation helper must prefer the current merged PR state and still reject duplicate advancement for the same stage transition.
