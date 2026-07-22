@@ -4,15 +4,14 @@
 Make external review deferable instead of escalatory when the provider says analysis is not ready. Helm should persist a durable pending-external-review intent for the exact product, external review identity, PR number, target revision, and provider; then resume the review loop automatically when the provider later reports readiness for that same revision. The review loop boundary should stay provider-agnostic, using a generic deferred state such as `deferred` with reason `analysis_pending`, while Haystack-specific triage, CLI flags, and readiness parsing remain inside the Haystack adapter.
 
 ## Implementation Steps
-1. Define the external-review contract at the loop boundary and rename any Haystack-specific public surface to external-review terminology.
-   - Add a normalized external-review result shape that can express `clean`, `blocked`, `deferred`, `skipped`, and `escalate` without exposing provider internals to the review loop.
-   - Carry a machine-readable deferred reason such as `analysis_pending` so the orchestration layer can tell safe waiting apart from auth/provider failure.
-   - Update any item/job/outbox naming that currently says Haystack when it really means external review, while leaving provider-specific adapter internals untouched.
+1. Extend the existing `ExternalReviewResult` contract (do not invent a parallel loop module).
+   - Add `deferred` with reason `analysis_pending` alongside existing `clean` | `needs_fixes` | `skipped` | `escalate`.
+   - Keep orchestration types free of Haystack names; provider-specific strings stay inside the Haystack adapter.
+   - Prefer extending `ReviewDispatchIntent` / review-dispatch outbox over a brand-new store, unless a field shape clearly does not fit.
 
-2. Add durable storage for a pending external-review intent and make it the source of truth for deferred analysis.
-   - Persist the intent with product, external ID, PR number, target revision, provider, timestamps, and whatever expiry or invalidation metadata the current workflow uses.
-   - Make writes idempotent so repeated pending notifications for the same revision do not duplicate the intent row or overwrite a newer revision.
-   - Clear the intent when the provider later reports success, when the intent expires, or when the recorded revision is no longer valid for the current PR state.
+2. Persist pending-external-review intents via the existing review-dispatch outbox (or a thin extension of it).
+   - Key by product, external ID, PR number, target revision, and provider; include createdAt / expiresAt (`max_defer_sec`).
+   - Idempotent writes for the same revision; clear on success, expiry, or invalid revision.
 
 3. Teach the review loop to defer instead of escalating when the adapter reports analysis is pending.
    - Replace the current `pending_timeout`-style escalation branch with a deferred return that records the pending intent and exits the loop without human escalation.
@@ -41,19 +40,22 @@ Make external review deferable instead of escalatory when the provider says anal
    - Keep the Haystack triage flow described as a provider-specific implementation detail, not the canonical loop contract.
 
 ## Files to Touch
-- `packages/orchestrator/src/review-loop/external-review.ts` - define the provider-agnostic normalized contract and deferred status handling.
-- `packages/orchestrator/src/review-loop/external-review-loop.ts` - change the loop to persist pending intents, defer on analysis-pending, and resume on readiness.
-- `packages/orchestrator/src/review-loop/pending-external-review-store.ts` - add durable storage, matching, expiry, and invalidation for pending intents.
-- `packages/orchestrator/src/adapters/haystack-external-review-adapter.ts` - keep Haystack-specific triage parsing, deferred-state detection, and readiness mapping isolated.
-- `packages/orchestrator/src/adapters/external-review-adapter.test.ts` - cover provider-agnostic contract behavior and deferred-state normalization.
-- `packages/orchestrator/src/review-loop/external-review-loop.test.ts` - cover pending-to-deferred intent creation, resume behavior, wrong-revision ignores, and idempotency.
-- `packages/orchestrator/src/review-loop/pending-external-review-store.test.ts` - cover persistence, expiry, clearing, and revision matching.
-- `packages/orchestrator/src/adapters/haystack-external-review-adapter.test.ts` - cover Haystack-specific pending, ready, and failure parsing without leaking provider details upward.
-- `apps/api/src/routes/webhooks.ts` - receive provider readiness signals and trigger the resume path.
-- `apps/api/src/services/job-store.ts` - preserve orchestration-level dedupe so repeated readiness signals do not create duplicate fanout jobs.
-- `apps/api/src/services/outbox.ts` - rename or extend outbox entries to external-review terminology where the public event surface is currently Haystack-specific.
-- `apps/api/src/services/job-store.test.ts` - verify duplicate readiness notifications and resume attempts stay idempotent.
-- `helm-knowledge/decisions/036-pr-review-loop-external-adapter.md` - add the ADR-036 addendum/cross-reference for deferred external review semantics.
+Existing layout (do **not** invent parallel modules): extend the ADR-036 external-review package and the existing review-dispatch outbox.
+
+- `packages/orchestrator/src/external-review/types.ts` — extend `ExternalReviewResult` with `deferred` / `analysis_pending` (keep existing `clean` | `needs_fixes` | `skipped` | `escalate`).
+- `packages/orchestrator/src/external-review/run.ts` — route deferred results without provider leakage.
+- `packages/orchestrator/src/external-review/haystack/adapter.ts` — map Haystack pending / budget-exhausted triage to generic `deferred` (not `escalate`).
+- `packages/orchestrator/src/external-review/haystack/triage-poll.ts` — today maps budget exhaust → `pending_timeout` → escalate; change to deferred when configured.
+- `packages/orchestrator/src/external-review/haystack/skip-evidence.ts` / `normalize.ts` — reuse readiness / check evidence for resume matching where useful.
+- `packages/orchestrator/src/review-loop/external-stop-rule.ts` — add `defer` action distinct from `external_escalate`.
+- `packages/orchestrator/src/review-loop/code-review-loop.ts` — on defer: persist pending intent callback / result without human escalation comment.
+- `packages/orchestrator/src/dispatcher.ts` — surface a non-error deferred outcome (or equivalent) so jobs are not treated as hard failures.
+- `packages/shared/src/config/product-schema.ts` — generic knobs under `review.external` (`defer_when_pending`, `resume_on_check_run`, `max_defer_sec`); keep poll/timeout under `haystack:`.
+- `apps/api/src/services/review-dispatch-outbox.ts` — extend `ReviewDispatchIntent` (or sibling fields) for pending-external-review: provider, kind, expiresAt; reuse put/get/replay + revision matching.
+- `apps/api/src/services/dispatch-scheduler.ts` — `persistReviewDispatchIntent` / `replayPendingReviewDispatch` when deferred; clear on success/expiry/wrong revision.
+- `apps/api/src/routes/webhooks.ts` — handle GitHub `check_run` / status readiness and trigger idempotent `reviewer-fanout` resume for matching intents.
+- Colocated tests: `external-stop-rule.test.ts`, `code-review-loop.test.ts`, haystack `adapter.test.ts` / `triage-poll` tests, `review-dispatch-outbox.test.ts`, `webhooks.test.ts`.
+- `decisions/036-pr-review-loop-external-adapter.md` (this knowledge repo) — addendum for deferred/resume semantics (Haystack remains provider detail).
 
 ## Test Strategy
 - Unit tests for the review loop:
