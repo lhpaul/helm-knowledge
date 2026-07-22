@@ -226,6 +226,37 @@ triage budget. Order may be revisited per product if data shows otherwise.
 
 ---
 
+## Addendum — Deferred External Analysis
+
+External reviewer latency is not a human-escalation condition by itself. When an
+adapter can distinguish "analysis is still pending" from provider failure,
+authentication failure, skipped analysis with ready evidence, or actual blocking
+findings, it returns a provider-agnostic result:
+
+```ts
+{ status: 'deferred', reason: 'analysis_pending' }
+```
+
+Helm persists a pending external-review intent keyed by product slug, external
+item id, provider, PR number, and target revision. The intent records
+`createdAt`, `expiresAt`, and the provider identity. Repeated pending results for
+the same revision update the same durable intent instead of creating parallel
+review jobs.
+
+Resume is event-driven when possible. A provider readiness signal, such as a
+GitHub check-run or status update, may enqueue the reviewer-fanout resume path
+only when it matches the stored provider, item, PR number, and exact target
+revision. Readiness for an older or newer revision is a no-op; Helm never resumes
+optimistically when the revision cannot be proven.
+
+Provider-specific recognition remains inside the adapter layer and webhook
+normalization. For v1, Haystack maps pending triage budget exhaustion to the
+generic deferred result when `review.external.defer_when_pending` is not disabled.
+Haystack CLI flags, check names, and triage parsing are not part of the canonical
+review-loop contract.
+
+---
+
 ## Revisit when
 
 - A second external provider is needed in production → add adapter only; revisit
