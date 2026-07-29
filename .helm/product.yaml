@@ -42,6 +42,13 @@ review:
       major_is_blocking: false
       poll_interval_sec: 15
       timeout_sec: 120
+    bugbot:
+      # GitHub check-run name observed in dogfood (Cursor app).
+      check_names:
+        - Cursor Bugbot
+        - Bugbot
+        - Bugbot / Review
+        - Cursor / Bugbot
   loop:
     max_cycles: 5
     adjudication:
