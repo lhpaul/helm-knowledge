@@ -36,7 +36,8 @@ workflow:
 
 review:
   external:
-    provider: haystack
+    provider: bugbot
+    # Haystack config retained for easy rollback during Bugbot pilot (issue_82).
     haystack:
       major_is_blocking: false
       poll_interval_sec: 15
