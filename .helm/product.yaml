@@ -36,8 +36,10 @@ workflow:
 
 review:
   external:
-    provider: bugbot
-    # Haystack config retained for easy rollback during Bugbot pilot (issue_82).
+    provider: coderabbit
+    defer_when_pending: true
+    resume_on_check_run: true
+    # Haystack retained only until #85 removes it. Bugbot pilot kept for rollback.
     haystack:
       major_is_blocking: false
       poll_interval_sec: 15
@@ -49,6 +51,13 @@ review:
         - Bugbot
         - Bugbot / Review
         - Cursor / Bugbot
+    coderabbit:
+      status_contexts:
+        - CodeRabbit
+      trusted_identities:
+        - 'coderabbitai[bot]'
+        - coderabbitai
+        - 'coderabbitai-pro[bot]'
   loop:
     max_cycles: 5
     adjudication:
