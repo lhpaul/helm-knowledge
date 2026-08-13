@@ -257,6 +257,64 @@ review-loop contract.
 
 ---
 
+## Addendum — Haystack retirement (2026-08-13, lhpaul/helm#85)
+
+**Haystack is retired as a Helm external review provider.** The body of this ADR
+above is kept as the historical record of the v1 design; this addendum records
+what changed and what replaces it.
+
+**Why:** Haystack stopped working as an external review provider. Its support was
+still wired through the schema, adapter, webhook parser, product config, and
+docs, which cost maintenance and confused operators about which provider is
+current.
+
+**Migration target:** `review.external.provider: coderabbit` (ADR-036 adapter
+contract unchanged, landed in lhpaul/helm#86). `bugbot` remains supported as an
+interim/rollback provider. Helm's own product config moved to CodeRabbit before
+this removal (lhpaul/helm-knowledge#63).
+
+**What was removed:**
+
+- `review.external.provider` accepts only `bugbot` | `coderabbit`. The strict
+  schema now **rejects** both `provider: haystack` and any
+  `review.external.haystack` block — a product config carrying either fails to
+  parse.
+- `packages/orchestrator/src/external-review/haystack/**` — adapter, `haystack`
+  CLI wrapper, triage polling, category and finding-id normalization,
+  skip-evidence probe, and fixtures — plus the Haystack branch in
+  `runExternalReviewIfConfigured`.
+- The `haystack / review` check-name allowlist and the Haystack GitHub App
+  trusted identities in the GitHub Projects webhook parser. A `Haystack / Review`
+  check run no longer emits `external_review_ready`, so it can never resume a
+  deferred review.
+- The `external_skip_evidence` stop-rule escalation reason (§6). Only the
+  Haystack `pr-status` probe ever produced that evidence, so the escalation
+  behavior of the remaining providers is unchanged: `external_escalate` on
+  adapter `escalate`, `external_repeated_skip` once the skip budget
+  (`review.loop.stop_rule.no_progress_cycles`) is exhausted.
+
+**Behavior notes:** the post-skip retry backoff was read from
+`review.external.haystack.poll_interval_sec`; it is now a fixed 15s. The
+deferred-analysis contract in the addendum above is **unchanged and still
+current** — `deferred` / `analysis_pending` remains a resumable outcome, not a
+terminal one, and is now implemented by the Bugbot and CodeRabbit adapters. What
+differs per provider is only the readiness signal Helm will trust: a check run
+with an allowlisted name from a trusted GitHub App identity (Bugbot), or a status
+with an allowlisted context from a trusted sender login (CodeRabbit). Both are
+name **and** identity checks, and both must still match the stored provider,
+item, PR number, and exact target revision before a resume is enqueued.
+
+**Not changed — historical provenance:** ADRs, learnings, specs, plans, and the
+`**Example:**` / `**Origin:**` fields of `false-positives.md` keep their Haystack
+attributions; they are an accurate record of where a finding came from. What did
+change in `false-positives.md` is the *active* `**Pattern:**` / `**Action:**`
+text, which is now provider-neutral — that text is matched against live findings
+by the review loop, so naming a retired provider there would only narrow matching
+against CodeRabbit and Bugbot output. Provenance moved into `**Origin:**` rather
+than being dropped.
+
+---
+
 ## Revisit when
 
 - A second external provider is needed in production → add adapter only; revisit

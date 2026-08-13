@@ -37,15 +37,12 @@ workflow:
 review:
   external:
     # CodeRabbit is supported by lhpaul/helm#86, merged into develop.
-    # Keep Haystack/Bugbot blocks below only as rollback config until their
-    # separate cleanup decisions land.
+    # Haystack was retired end-to-end by lhpaul/helm#85 (ADR-036 addendum) —
+    # the product schema now rejects `provider: haystack` and any
+    # `review.external.haystack` block. Bugbot stays as rollback config.
     provider: coderabbit
     defer_when_pending: true
     resume_on_check_run: true
-    haystack:
-      major_is_blocking: false
-      poll_interval_sec: 15
-      timeout_sec: 120
     bugbot:
       # GitHub check-run name observed in dogfood (Cursor app).
       check_names:

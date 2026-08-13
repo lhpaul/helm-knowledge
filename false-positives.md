@@ -71,7 +71,7 @@ spec-intended.
 
 ### CLAUDE.md §10.2 endpoint signature vs §10.3 matching policy
 
-**Pattern:** Haystack flags inconsistency between §10.2 (endpoint
+**Pattern:** A reviewer flags inconsistency between §10.2 (endpoint
 signature `GET /contacts?email=&rut=` — accepts both) and §10.3
 (matching policy: email-only for the MVP).
 
@@ -80,16 +80,18 @@ discrepancy with "RUT is not used for matching even though endpoint #1
 accepts it." The endpoint shape (what the API accepts) and the policy
 (how we use it) are consistent, not contradictory.
 
-**Action:** Mark as false positive, do not ticket. If Haystack surfaces
-this again in future triages (e.g., LEA-105+), skip it.
+**Action:** Mark as false positive, do not ticket. If an external reviewer
+surfaces this again in future triages (e.g., LEA-105+), skip it.
 
-**Origin:** LEA-104 re-triage 1, 2026-06-02.
+**Origin:** LEA-104 re-triage 1, 2026-06-02 — originally flagged by Haystack
+(retired as a provider in 2026-08; the pattern above is deliberately
+provider-neutral so it still matches CodeRabbit/Bugbot findings).
 
 ---
 
 ### `tenantTable(...)` helper name read as RLS / tenant-scoping
 
-**Pattern:** Haystack flags `core_*` (or other non-tenant) tables as using
+**Pattern:** A reviewer flags `core_*` (or other non-tenant) tables as using
 "tenant-scoped RLS" because they are declared with a helper named
 `tenantTable(...)`, and concludes RLS is applied / required.
 
@@ -104,7 +106,9 @@ per §4.5).
 migration has zero RLS on the flagged tables, dismiss. (Cosmetic rename of the
 helper is tracked separately in LEA-124 to reduce this FP surface.)
 
-**Origin:** LEA-105 impl re-triage, 2026-06-02.
+**Origin:** LEA-105 impl re-triage, 2026-06-02 — originally flagged by Haystack
+(retired as a provider in 2026-08; the pattern above is deliberately
+provider-neutral so it still matches CodeRabbit/Bugbot findings).
 
 ---
 
