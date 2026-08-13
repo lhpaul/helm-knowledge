@@ -1,10 +1,26 @@
 # Code-review false positives
 
-Recurring findings from automated code review (Haystack, reviewer agents) that
-are **not real issues**. When a triage surfaces one of these, mark it
-dismissed/known rather than acting on it.
+Recurring findings from automated code review (external providers, reviewer
+agents) that are **not real issues**. When a triage surfaces one of these, mark
+it dismissed/known rather than acting on it.
 
 Each entry: the pattern, why it's a false positive, and a concrete example.
+
+This file is also Helm's **adjudication catalogue** (ADR-041): the review loop
+injects the entries that apply to the current stage into the `review-adjudicator`
+and `code-remediator` prompts. When two reviewers hold opposing CRITICAL/HIGH
+findings and one side matches an entry here, that side is deferred and the
+opposing fix stands — the implementation must not flip back and forth. Because
+of that, an entry is load-bearing: give it the same care as an ADR.
+
+Optional per-entry field:
+
+```markdown
+**Applies to:** code-review
+```
+
+Comma-separated workflow stages (`code-review`, `spec-draft`, `plan-draft`, …).
+Omit it to apply the entry at every stage.
 
 ---
 
@@ -106,5 +122,6 @@ database as `DATABASE_URL`.
 
 **Action:** Mark as catalogued false-positive. Do not let the code-remediator
 revert the split — that re-opens a real security HIGH (RLS-bypass on whole API).
+Per ADR-041 the loop now defers this side of the conflict automatically.
 
 **Origin:** LEA-109 reviewer-fanout round 2, 2026-06-02.
