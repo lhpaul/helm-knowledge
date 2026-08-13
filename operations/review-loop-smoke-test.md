@@ -45,7 +45,7 @@ Then satisfy the row for the **configured** provider only:
 > Readiness is name **and** identity: an allowlisted name from an untrusted app or
 > sender is ignored (ADR-036 Option B trust boundary). If a run never resumes,
 > check both columns before anything else.
-
+>
 > External analysis typically completes a few minutes after a PR push. When it is
 > still pending the adapter returns `deferred` / `analysis_pending`; Helm persists
 > the intent and resumes on the provider's readiness signal (ADR-036 addendum
@@ -104,7 +104,7 @@ Expected order per ADR-036:
 3. Repeat 1–2 until internal clean or stop-rule
 4. External adapter for the configured provider (`CodeRabbitExternalReviewAdapter` / `BugbotExternalReviewAdapter`)
 5. If external blockers → `code-remediator` with normalized findings → back to step 1
-6. If external analysis is still pending → external `status: deferred` / `reason: analysis_pending`. **Not terminal:** Helm persists one pending intent (provider + item + PR number + exact target revision) and returns; the provider's readiness signal resumes step 4 for that same revision. Readiness for any other revision is a no-op.
+6. If external analysis is still pending → external `status: deferred` / `reason: analysis_pending`. **Not terminal:** Helm persists one pending intent (provider + item + PR number + exact target revision) and returns; the provider's readiness signal resumes `reviewer-fanout` **once** for that same revision. Readiness for any other revision is a no-op.
 7. Terminal: dispatch `status: done`, loop `escalated: true`, or external `status: skipped` (provider unavailable)
 
 ### 4. Record outcome
@@ -114,7 +114,7 @@ Expected order per ADR-036:
 | Date | |
 | Item | |
 | PR | |
-| Scenario (A/B/C) | |
+| Scenario (A/B/C/D) | |
 | Cycles completed | |
 | External adapter result | `clean` / `needs_fixes` / `skipped` / `escalate` / `deferred` (`reason: analysis_pending` — resumable, not terminal) (see ADR-036 `ExternalReviewResult`) |
 | Dispatch loop escalated | `escalated: true` on job result (stop-rule or external blockers) |
