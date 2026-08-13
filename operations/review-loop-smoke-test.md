@@ -105,7 +105,8 @@ Expected order per ADR-036:
 4. External adapter for the configured provider (`CodeRabbitExternalReviewAdapter` / `BugbotExternalReviewAdapter`)
 5. If external blockers → `code-remediator` with normalized findings → back to step 1
 6. If external analysis is still pending → external `status: deferred` / `reason: analysis_pending`. **Not terminal:** Helm persists one pending intent (provider + item + PR number + exact target revision) and returns; the provider's readiness signal resumes `reviewer-fanout` **once** for that same revision. Readiness for any other revision is a no-op.
-7. Terminal: dispatch `status: done`, loop `escalated: true`, or external `status: skipped` (provider unavailable)
+7. If external review is `skipped` (provider unavailable) → **retryable**, not terminal: the loop retries up to `review.loop.stop_rule.no_progress_cycles` before giving up.
+8. Terminal: dispatch `status: done`, loop `escalated: true`, or a `skipped` result once the skip budget is exhausted (escalates as `external_repeated_skip`).
 
 ### 4. Record outcome
 
@@ -176,7 +177,7 @@ Notes:
 | Reviewer fan-out timeout (~600s) | Diff base wrong (`default_branch: main` while impl PR targets `develop`) or huge monorepo scan | Set `code_repos[].default_branch` to the repo's integration branch; add reviewer `extra_hints` to scope smoke PRs |
 | `Product not found: helm` with multi-product registry | A sibling product's `product.yaml` fails validation (legacy specialist IDs) | Fix or temporarily exclude the broken entry from `.helm/products.yaml` |
 | External `skipped` / `unavailable` | Provider app not installed on the repo, or it published no review/status for the head SHA | Confirm the provider app is installed and has run on the PR; check the configured `check_names` / `status_contexts` match what GitHub actually reports |
-| External `status: deferred` + `analysis_pending` | Provider analysis still running | Expected — Helm stores the intent and resumes on the readiness webhook. If it never resumes, verify `resume_on_check_run: true` and that the readiness event matches the stored PR **and** target revision |
+| External `status: deferred` + `analysis_pending` | Provider analysis still running | Expected — Helm stores the intent and resumes on the readiness webhook. If it never resumes, check every matching key, because any mismatch is a deliberate no-op rather than a failure: `resume_on_check_run: true`; the readiness signal's name/context is allowlisted **and** its app/sender identity is trusted; and the event matches the stored **provider**, **item** (`externalId`), **PR number**, and **exact target revision** |
 | Dispatch `escalated: true` | Adapter returned `escalate`, or the skip budget ran out | Check job JSON for `escalationReason` (`external_escalate`, `external_repeated_skip`); the loop retries skips up to `review.loop.stop_rule.no_progress_cycles` before escalating with a PR comment |
 | Infinite advisory churn | Treating advisories as blockers | Confirm the adapter's `blocking_severities` for the configured provider |
 | No Review Loop Summary on PR | Clean exit had zero external advisories, or summary post failed (best-effort) | Check external `clean` result includes advisories; look for `<!-- helm:review-loop-summary -->` comment |
