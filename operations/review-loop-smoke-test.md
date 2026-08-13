@@ -11,7 +11,7 @@ real impl PR for the `helm` product.
 > kept verbatim as history; read them as Haystack-era evidence, not as setup
 > instructions.
 
-**Depends on:** [lhpaul/helm#86](https://github.com/lhpaul/helm/pull/86) (CodeRabbit adapter), [lhpaul/helm-knowledge#41](https://github.com/lhpaul/helm-knowledge/pull/41) (`review` in `.helm/product.yaml`).
+**Depends on:** [lhpaul/helm#86](https://github.com/lhpaul/helm/pull/86) (CodeRabbit adapter, merged) and [lhpaul/helm#85](https://github.com/lhpaul/helm/issues/85) (Haystack removal). The `review` block in `.helm/product.yaml` arrived in [lhpaul/helm-knowledge#41](https://github.com/lhpaul/helm-knowledge/pull/41) and was switched to CodeRabbit in [lhpaul/helm-knowledge#63](https://github.com/lhpaul/helm-knowledge/pull/63).
 
 **ADR:** [036-pr-review-loop-external-adapter.md](../decisions/036-pr-review-loop-external-adapter.md)
 (see the *Haystack retirement* addendum)
@@ -31,10 +31,20 @@ starting another dispatch for that item.
 | ----------- | ----- |
 | Helm API running locally | `pnpm --filter @helm/api dev` |
 | `GITHUB_TOKEN` with repo + PR scope | `gh auth status` |
-| CodeRabbit app installed on the repo | CodeRabbit posts a review / `CodeRabbit` status on a recent PR |
-| Product config includes `review.external.provider: coderabbit` | `.helm/product.yaml` in this repo |
+| Product config sets a supported provider | `review.external.provider` is `coderabbit` (default) or `bugbot` in `.helm/product.yaml` |
 | Webhook readiness enabled | `review.external.resume_on_check_run: true` in `.helm/product.yaml` |
 | Pilot item in `code-review` with open `helm/impl/<id>` PR | GitHub Projects / Helm dashboard |
+
+Then satisfy the row for the **configured** provider only:
+
+| `review.external.provider` | Provider app installed | Readiness signal Helm trusts | Trust config it must match |
+| -------------------------- | ---------------------- | --------------------------- | -------------------------- |
+| `coderabbit` (current default) | CodeRabbit posts a review on a recent PR | GitHub **status** whose context is allowlisted, from a trusted sender login | `review.external.coderabbit.status_contexts` / `.trusted_identities` |
+| `bugbot` (interim / rollback) | Cursor Bugbot posts a check run on a recent PR | GitHub **check run** whose name is allowlisted, from a trusted GitHub App identity | `review.external.bugbot.check_names` / `.trusted_app_identities` |
+
+> Readiness is name **and** identity: an allowlisted name from an untrusted app or
+> sender is ignored (ADR-036 Option B trust boundary). If a run never resumes,
+> check both columns before anything else.
 
 > External analysis typically completes a few minutes after a PR push. When it is
 > still pending the adapter returns `deferred` / `analysis_pending`; Helm persists
@@ -50,6 +60,7 @@ starting another dispatch for that item.
 | **A — Clean exit** | Impl PR with no CRITICAL/HIGH internal findings and the external provider returns zero blocking findings | Dispatch completes `status: done`; item stays in `code-review`; no remediation transition after external review |
 | **B — External remediation cycle** | The external provider returns a blocking finding that internal reviewers missed | Loop transitions to `remediation`, pushes fix, returns to `code-review`, re-runs internal fanout |
 | **C — Escalation at max_cycles** | Blockers persist across cycles (or inject a non-fixable blocker in a test PR) | Dispatch returns `escalated: true` with stop-rule message; item requires human intervention |
+| **D — Deferred analysis and resume** | Dispatch while the provider's analysis is still running, then let it finish and emit its readiness signal | Dispatch returns `status: deferred` with `reason: analysis_pending`; **exactly one** pending intent is persisted, carrying the configured provider, this `externalId`, this PR number, and the **exact** target revision; the readiness event resumes `reviewer-fanout` **once** — no duplicate job, no second intent |
 
 **Semantic reminder (ADR-036):** `clean` means **zero blocking findings**, not zero
 advisories. A style/nitpick finding on CHANGELOG is advisory — do not chase it.
@@ -93,7 +104,8 @@ Expected order per ADR-036:
 3. Repeat 1–2 until internal clean or stop-rule
 4. External adapter for the configured provider (`CodeRabbitExternalReviewAdapter` / `BugbotExternalReviewAdapter`)
 5. If external blockers → `code-remediator` with normalized findings → back to step 1
-6. Terminal: dispatch `status: done`, loop `escalated: true`, external `status: deferred` (analysis pending — resumes on readiness), or external `status: skipped` (provider unavailable)
+6. If external analysis is still pending → external `status: deferred` / `reason: analysis_pending`. **Not terminal:** Helm persists one pending intent (provider + item + PR number + exact target revision) and returns; the provider's readiness signal resumes step 4 for that same revision. Readiness for any other revision is a no-op.
+7. Terminal: dispatch `status: done`, loop `escalated: true`, or external `status: skipped` (provider unavailable)
 
 ### 4. Record outcome
 
@@ -104,9 +116,10 @@ Expected order per ADR-036:
 | PR | |
 | Scenario (A/B/C) | |
 | Cycles completed | |
-| External adapter result | `clean` / `needs_fixes` / `skipped` / `escalate` (see ADR-036 `ExternalReviewResult`) |
+| External adapter result | `clean` / `needs_fixes` / `skipped` / `escalate` / `deferred` (`reason: analysis_pending` — resumable, not terminal) (see ADR-036 `ExternalReviewResult`) |
 | Dispatch loop escalated | `escalated: true` on job result (stop-rule or external blockers) |
 | Blocking external finding ids (if any) | |
+| Deferred (if scenario D) | intents persisted (expect 1) / resumed revision / duplicate jobs (expect 0) |
 | Pass / Fail | |
 
 Paste the job result JSON or link the dispatch log in [lhpaul/helm#52](https://github.com/lhpaul/helm/issues/52) when filing the smoke-test completion note.

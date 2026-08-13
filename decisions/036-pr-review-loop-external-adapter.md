@@ -295,12 +295,23 @@ this removal (lhpaul/helm-knowledge#63).
 
 **Behavior notes:** the post-skip retry backoff was read from
 `review.external.haystack.poll_interval_sec`; it is now a fixed 15s. The
-deferred-analysis contract in the addendum above is unchanged and is now
-implemented by the Bugbot and CodeRabbit adapters.
+deferred-analysis contract in the addendum above is **unchanged and still
+current** — `deferred` / `analysis_pending` remains a resumable outcome, not a
+terminal one, and is now implemented by the Bugbot and CodeRabbit adapters. What
+differs per provider is only the readiness signal Helm will trust: a check run
+with an allowlisted name from a trusted GitHub App identity (Bugbot), or a status
+with an allowlisted context from a trusted sender login (CodeRabbit). Both are
+name **and** identity checks, and both must still match the stored provider,
+item, PR number, and exact target revision before a resume is enqueued.
 
-**Not changed:** historical ADRs, learnings, specs, plans, and
-`false-positives.md` origin notes keep their Haystack attributions — they are an
-accurate record of where a finding came from.
+**Not changed — historical provenance:** ADRs, learnings, specs, plans, and the
+`**Example:**` / `**Origin:**` fields of `false-positives.md` keep their Haystack
+attributions; they are an accurate record of where a finding came from. What did
+change in `false-positives.md` is the *active* `**Pattern:**` / `**Action:**`
+text, which is now provider-neutral — that text is matched against live findings
+by the review loop, so naming a retired provider there would only narrow matching
+against CodeRabbit and Bugbot output. Provenance moved into `**Origin:**` rather
+than being dropped.
 
 ---
 

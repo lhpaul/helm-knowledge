@@ -83,7 +83,9 @@ accepts it." The endpoint shape (what the API accepts) and the policy
 **Action:** Mark as false positive, do not ticket. If an external reviewer
 surfaces this again in future triages (e.g., LEA-105+), skip it.
 
-**Origin:** LEA-104 re-triage 1, 2026-06-02.
+**Origin:** LEA-104 re-triage 1, 2026-06-02 — originally flagged by Haystack
+(retired as a provider in 2026-08; the pattern above is deliberately
+provider-neutral so it still matches CodeRabbit/Bugbot findings).
 
 ---
 
@@ -104,7 +106,9 @@ per §4.5).
 migration has zero RLS on the flagged tables, dismiss. (Cosmetic rename of the
 helper is tracked separately in LEA-124 to reduce this FP surface.)
 
-**Origin:** LEA-105 impl re-triage, 2026-06-02.
+**Origin:** LEA-105 impl re-triage, 2026-06-02 — originally flagged by Haystack
+(retired as a provider in 2026-08; the pattern above is deliberately
+provider-neutral so it still matches CodeRabbit/Bugbot findings).
 
 ---
 
