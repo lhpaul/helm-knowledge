@@ -122,8 +122,8 @@ stable dedup key and is not used as one.
 The escalation **PR comment** is not yet deduplicated — `postPRComment` appends,
 inherited from ADR-036, so repeated escalations post repeated comments. Making it
 an upsert-by-marker (as the ADR-036 Review Loop Summary already is) changes the
-shared escalation path for every reason code, so it is tracked separately rather
-than folded into this ADR.
+shared escalation path for every reason code, so it is tracked separately in
+lhpaul/helm#93 rather than folded into this ADR.
 
 ### 6. Monotonic writes
 
@@ -221,7 +221,8 @@ durable payload. Revisit if count-based carry-over proves too coarse.
   fingerprints (alternative E).
 - Multi-repo remediation lands — the lane key may need a repo dimension.
 - The escalation PR comment should upsert by marker instead of appending, so a
-  repeatedly re-dispatched item does not accumulate identical comments (§5).
+  repeatedly re-dispatched item does not accumulate identical comments
+  (§5, lhpaul/helm#93).
 
 ---
 
