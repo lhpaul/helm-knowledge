@@ -89,6 +89,15 @@ checked **before** `max_cycles`: once the lifetime budget is gone, "this
 dispatch also hit its burst limit" is the less useful of the two facts, and
 `cycle` restarting at 1 is precisely what the new rule exists to catch.
 
+**Probe order — where the rule runs.** The stop rule is evaluated inside the
+loop, *after* a reviewer fan-out has reported blockers and *before* the
+remediation pass that would answer them — the same position ADR-036 gave it. It
+is never evaluated at dispatch start. So a re-dispatch of an item whose budget
+is already spent still runs one fan-out; that fan-out is a **probe**, not a
+remediation pass, and never increments `cyclesTotal`. A clean probe exits the
+loop normally (§7); a probe that still finds blockers escalates before spending
+another pass.
+
 Cross-dispatch **no-progress keeps the existing `no_progress` reason**. Seeding
 the streak (and `bestBlockerCount`, without which the first cycle of every
 dispatch has no baseline and resets the streak to 0) is the whole mechanism; it
@@ -103,6 +112,18 @@ only shows up in a job record is not an escalation an operator will see.
 
 Escalations also append one item-history event. Ordinary cycle ticks do not —
 a long loop must not bloat item history.
+
+A still-blocked item re-escalates on every re-dispatch, so the history event
+carries an idempotency key of `(lane, reason, cyclesTotal)`: a retry or duplicate
+webhook at the same budget state is a no-op, while an escalation after more
+cycles is recorded as the distinct event it is. `escalatedAt` alone is not a
+stable dedup key and is not used as one.
+
+The escalation **PR comment** is not yet deduplicated — `postPRComment` appends,
+inherited from ADR-036, so repeated escalations post repeated comments. Making it
+an upsert-by-marker (as the ADR-036 Review Loop Summary already is) changes the
+shared escalation path for every reason code, so it is tracked separately rather
+than folded into this ADR.
 
 ### 6. Monotonic writes
 
@@ -177,9 +198,14 @@ durable payload. Revisit if count-based carry-over proves too coarse.
 
 - **One extra fan-out per re-dispatch after escalation** (§7) — accepted as the
   price of letting a genuinely fixed item exit clean.
-- **Ledger writes are best-effort.** A failed write logs and continues rather
-  than aborting a run that already pushed remediation commits; the cost is a
-  budget that under-counts until the next pass.
+- **Ledger writes are retry-once, then best-effort.** A write that fails twice
+  logs and continues rather than aborting a run that already pushed remediation
+  commits. The cost is a budget that under-counts: because writes carry the
+  running total (not a delta) and `cyclesTotal` is clamped with `max`, the next
+  successful write restores the correct total — a dropped write costs accuracy
+  only until then, not permanently. Blocking the next remediation pass on a
+  durable write was rejected: a transient filesystem error would then halt
+  review loops entirely, a worse failure than a temporarily loose budget.
 - **Single-process serialization** — the ItemStore per-item lock is in-process
   (same v0 constraint as every other item write). The monotonic clamps are the
   durable defense.
@@ -194,6 +220,8 @@ durable payload. Revisit if count-based carry-over proves too coarse.
 - Cross-dispatch progress detection proves too coarse without sticky
   fingerprints (alternative E).
 - Multi-repo remediation lands — the lane key may need a repo dimension.
+- The escalation PR comment should upsert by marker instead of appending, so a
+  repeatedly re-dispatched item does not accumulate identical comments (§5).
 
 ---
 
