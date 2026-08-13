@@ -36,8 +36,12 @@ workflow:
 
 review:
   external:
-    provider: bugbot
-    # Haystack config retained for easy rollback during Bugbot pilot (issue_82).
+    # CodeRabbit is supported by lhpaul/helm#86, merged into develop.
+    # Keep Haystack/Bugbot blocks below only as rollback config until their
+    # separate cleanup decisions land.
+    provider: coderabbit
+    defer_when_pending: true
+    resume_on_check_run: true
     haystack:
       major_is_blocking: false
       poll_interval_sec: 15
@@ -49,6 +53,13 @@ review:
         - Bugbot
         - Bugbot / Review
         - Cursor / Bugbot
+    coderabbit:
+      status_contexts:
+        - CodeRabbit
+      trusted_identities:
+        - 'coderabbitai[bot]'
+        - coderabbitai
+        - 'coderabbitai-pro[bot]'
   loop:
     max_cycles: 5
     adjudication:
