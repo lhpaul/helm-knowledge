@@ -115,6 +115,8 @@ the spec/plan literally and flags `BETTER_AUTH_DATABASE_URL` (a connection URL
 distinct from `DATABASE_URL`) as a spec violation when it points at the SAME
 database as `DATABASE_URL`.
 
+**Applies to:** code-review
+
 **Why it's a false positive:** The split is a connection-scope separation
 (least privilege), not a data separation. Same database, same table set, Plan A
 `user`→`tenants` mapping intact. See `CLAUDE.md` §5 "Auth connection scope

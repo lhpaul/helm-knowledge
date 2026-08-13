@@ -63,19 +63,37 @@ treatment ADR-037 settled decisions receive).
 
 ### 3. Policy for opposing CRITICAL/HIGH findings
 
-In priority order:
+Rules are evaluated **in order**; the first that applies decides, and every
+finding appears **exactly once** in the unified plan (either as `AUTO`,
+`DEFERRED`, or inside a single Conflicts entry). A rule that cannot pick a
+unique winner does not fall through to the next rule — it falls to rule 4.
 
-1. **One side is catalogued** → the catalogued side **loses**. The adjudicator
-   marks it `**DEFERRED**` in the unified plan citing the catalogue title, and
-   keeps the opposing fix as `**AUTO**`. It is not re-listed under Conflicts,
-   so it does not re-escalate to a human who already decided it.
-2. **Neither side is catalogued, and one is a generic secure default**
+1. **An explicit human decision covers the conflict** (a recorded ADR-037
+   settled decision, or a maintainer's product-decision comment) → follow it,
+   even when it chooses the less conservative option. Human authority outranks
+   both the catalogue and secure defaults.
+2. **Exactly one side is catalogued** → the catalogued side **loses**. The
+   adjudicator marks it `**DEFERRED**` in the unified plan citing the catalogue
+   title, and keeps the opposing fix as `**AUTO**`. It is not re-listed under
+   Conflicts, so it does not re-escalate to a human who already decided it.
+3. **No side is catalogued, and exactly one side is a generic secure default**
    (allowlist, fail closed, least privilege, strict validation, no open
-   redirect) → prefer the safer option as `**AUTO**` (ADR-037 §secure defaults,
-   lhpaul/helm#73). An explicit human override still wins.
-3. **Otherwise** → record it **once** under Conflicts as a `product_decision`
-   (`HUMAN_REQUIRED`). Alternating implementations across cycles is never a
-   valid outcome.
+   redirect) → prefer the safer option as `**AUTO**` and defer the other
+   (ADR-037 §secure defaults, lhpaul/helm#73).
+4. **Otherwise** → record the pair **once** under Conflicts as a single
+   `product_decision` (`HUMAN_REQUIRED`) and put neither side in the plan.
+
+Rule 4 is the deterministic outcome for every ambiguous case, specifically:
+
+- **Both sides catalogued**, or **one catalogue entry matches both sides** — the
+  catalogue cannot break a tie against itself. The entries are still cited in
+  the Conflicts body as context.
+- **Both sides read as secure defaults** — no option is unambiguously safer.
+- Any case where the adjudicator cannot name a unique winner.
+
+Alternating implementations across cycles is never a valid outcome: if the
+catalogue does not settle a conflict, it escalates once and stays escalated
+until a human records a decision.
 
 The remediator's corresponding rule: never revert or weaken code that exists to
 satisfy the other side of a catalogued entry, even when a reviewer asks for it —
