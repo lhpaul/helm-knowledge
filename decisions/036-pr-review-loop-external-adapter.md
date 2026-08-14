@@ -343,17 +343,21 @@ than being dropped.
 
 ## Addendum — Codex GitHub provider (2026-08-14)
 
-**`codex-github` is added as a third external review provider, and is now the
-one Helm dogfoods with.** The adapter contract in the body of this ADR is
-unchanged; what this addendum records is a provider whose *readiness signal* is
-a shape the earlier two did not have.
+**`codex-github` is added as a third external review provider.** The adapter
+contract in the body of this ADR is unchanged; what this addendum records is a
+provider whose *readiness signal* is a shape the earlier two did not have.
 
-**Why:** CodeRabbit rate-limited every review invocation on the open dogfood PRs
-(lhpaul/helm#95, lhpaul/helm-knowledge#67), so it stopped producing signal. Its
-rate-limited `success` status is already normalized to `skipped` rather than
-`clean` — correct, but it means the loop learns nothing and burns its skip
-budget. Codex is already the runtime behind every Helm specialist, so its GitHub
-reviewer bills against the same ChatGPT subscription.
+> **Status correction (same day):** `codex-github` was briefly made the dogfood
+> default and was **rolled back to `coderabbit`** before this addendum shipped —
+> see *Not the default: no terminal signal on a clean run* below. It stays fully
+> implemented and supported as an opt-in selection.
+
+**Why it was tried:** CodeRabbit rate-limited every review invocation on the open
+dogfood PRs (lhpaul/helm#95, lhpaul/helm-knowledge#67), so it stopped producing
+signal. Its rate-limited `success` status is already normalized to `skipped`
+rather than `clean` — correct, but it means the loop learns nothing and burns its
+skip budget. Codex is already the runtime behind every Helm specialist, so its
+GitHub reviewer bills against the same ChatGPT subscription.
 
 **The readiness signal is a submitted PR review.** Codex publishes no commit
 status and no reliable check run. It signals completion by submitting a GitHub
@@ -375,6 +379,26 @@ review, so:
   indistinguishable from an unfinished one. Returning `skipped` would spend the
   repeated-skip budget waiting for something that only arrives by webhook, so the
   adapter defers and lets `max_defer_sec` bound the wait.
+- **A draft review is not readiness.** GitHub's reviews endpoint exposes a
+  `PENDING` review (with `submitted_at: null`) before its author submits it, and
+  a draft carries no inline comments. Selecting it would fall through to `clean`
+  on an empty finding set, so the loader requires a submitted review — the same
+  contract the webhook path already enforces via `action: submitted`.
+
+**Not the default: no terminal signal on a clean run.** Codex publishes no check
+run and no commit status, and a run that finds nothing can end as a 👍 reaction
+rather than a submitted review. Helm reads reactions from no provider, and a
+reaction carries no `commit_id` to pin to the target revision even if it did — so
+a genuinely clean PR has nothing to resume on and sits `deferred` until
+`max_defer_sec` expires the intent. Re-triggering does not help: the rerun is
+clean too. This is the decisive difference from the other two providers, whose
+worst case (`skipped`) is still terminal and lets the loop make progress.
+
+Consequently the dogfood default returns to `coderabbit`, and `codex-github` is
+selected per-run where an operator is watching the loop. Promoting it to a
+default requires one of: Codex publishing a check run, status, or review on
+no-findings runs; or Helm gaining a reaction-based terminal signal that can be
+attributed to Codex **and** pinned to a revision. Neither exists today.
 
 **Severity mapping:** Codex reports on its own P-scale — `P0 → critical`,
 `P1 → high`, `P2 → medium`, `P3 → low`. An unlabeled comment normalizes to
@@ -392,10 +416,11 @@ poller post comments would both widen it and risk comment spam on every deferred
 cycle. Until automatic reviews are on, a deferred intent for an untriggered PR
 simply expires.
 
-**Rollback:** `coderabbit` and `bugbot` remain fully supported. Reverting is a
-one-line `review.external.provider` change in the product config plus flipping
-`auto_review.enabled` back on in `.coderabbit.yaml`; both blocks are kept in the
-dogfood config for exactly that reason.
+**Rollback (exercised 2026-08-14):** `coderabbit` and `bugbot` remain fully
+supported. Reverting is a one-line `review.external.provider` change in the
+product config plus flipping `auto_review.enabled` back on in `.coderabbit.yaml`
+(both repos); every provider block is kept in the dogfood config for exactly that
+reason. Selecting `codex-github` again is the same one-line change in reverse.
 
 ---
 
