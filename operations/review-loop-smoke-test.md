@@ -3,22 +3,25 @@
 Validates the bounded **internal fanout ↔ remediate ↔ external review** loop on a
 real impl PR for the `helm` product.
 
-> **Provider status (2026-08-14):** The current external provider is **Codex
-> GitHub** (`review.external.provider: codex-github`), with **CodeRabbit** and
-> **Bugbot** kept configured as rollback. CodeRabbit rate-limited every review
-> invocation on the open dogfood PRs, so it stopped producing signal (ADR-036
-> *Codex GitHub provider* addendum). Haystack was retired end-to-end by
+> **Provider status (2026-08-14):** The default external provider is
+> **CodeRabbit** (`review.external.provider: coderabbit`), with **Bugbot** kept
+> configured as rollback. **Codex GitHub** is implemented and supported, but is
+> **not the default**: it has no terminal signal for a *clean* run, so a PR with
+> no findings can sit deferred until its intent expires (see
+> [Codex trigger and readiness](#codex-trigger-and-readiness)). It was made the
+> default earlier on 2026-08-14 and rolled back the same day for that reason.
+> Haystack was retired end-to-end by
 > [lhpaul/helm#85](https://github.com/lhpaul/helm/issues/85) — do **not** install
 > or poll it for Helm; the product schema now rejects `provider: haystack`. The
-> recorded dogfood runs below predate both switches and are kept verbatim as
+> recorded dogfood runs below predate every switch and are kept verbatim as
 > history; read them as Haystack-era evidence, not as setup instructions.
 >
-> Codex's readiness signal is a **submitted PR review**, not a status or check
-> run, and Codex reviews are **not requested by Helm** — see
-> [Codex trigger and readiness](#codex-trigger-and-readiness) before running any
-> scenario against this default.
+> Select `codex-github` only for a run an operator is watching, and read
+> [Codex trigger and readiness](#codex-trigger-and-readiness) first: its
+> readiness signal is a **submitted PR review**, not a status or check run, and
+> Codex reviews are **not requested by Helm**.
 
-**Depends on:** [lhpaul/helm#95](https://github.com/lhpaul/helm/pull/95) (Codex GitHub adapter), [lhpaul/helm#86](https://github.com/lhpaul/helm/pull/86) (CodeRabbit adapter, merged) and [lhpaul/helm#85](https://github.com/lhpaul/helm/issues/85) (Haystack removal). The `review` block in `.helm/product.yaml` arrived in [lhpaul/helm-knowledge#41](https://github.com/lhpaul/helm-knowledge/pull/41), was switched to CodeRabbit in [lhpaul/helm-knowledge#63](https://github.com/lhpaul/helm-knowledge/pull/63), and to Codex GitHub in [lhpaul/helm-knowledge#67](https://github.com/lhpaul/helm-knowledge/pull/67).
+**Depends on:** [lhpaul/helm#95](https://github.com/lhpaul/helm/pull/95) (Codex GitHub adapter), [lhpaul/helm#86](https://github.com/lhpaul/helm/pull/86) (CodeRabbit adapter, merged) and [lhpaul/helm#85](https://github.com/lhpaul/helm/issues/85) (Haystack removal). The `review` block in `.helm/product.yaml` arrived in [lhpaul/helm-knowledge#41](https://github.com/lhpaul/helm-knowledge/pull/41), was switched to CodeRabbit in [lhpaul/helm-knowledge#63](https://github.com/lhpaul/helm-knowledge/pull/63), and briefly to Codex GitHub in [lhpaul/helm-knowledge#67](https://github.com/lhpaul/helm-knowledge/pull/67), which then rolled the default back to CodeRabbit.
 
 **ADR:** [036-pr-review-loop-external-adapter.md](../decisions/036-pr-review-loop-external-adapter.md)
 (see the *Haystack retirement* and *Codex GitHub provider* addenda)
@@ -38,7 +41,7 @@ starting another dispatch for that item.
 | ----------- | ----- |
 | Helm API running locally | `pnpm --filter @helm/api dev` |
 | `GITHUB_TOKEN` with repo + PR scope | `gh auth status` |
-| Product config sets a supported provider | `review.external.provider` is `codex-github` (default), `coderabbit`, or `bugbot` in `.helm/product.yaml` |
+| Product config sets a supported provider | `review.external.provider` is `coderabbit` (default), `bugbot`, or `codex-github` (opt-in) in `.helm/product.yaml` |
 | Webhook readiness enabled | `review.external.resume_on_check_run: true` in `.helm/product.yaml` — this one flag gates **all** readiness events, `pull_request_review` included, despite the check-run name |
 | Webhook delivers `pull_request_review` (Codex only) | The repo webhook subscribes to **Pull request review** events, not just check runs / statuses |
 | Codex reviews are triggered (Codex only) | *Automatic reviews* enabled in Codex's GitHub settings, or an `@codex review` comment on the pilot PR — see [Codex trigger and readiness](#codex-trigger-and-readiness) |
@@ -48,8 +51,8 @@ Then satisfy the row for the **configured** provider only:
 
 | `review.external.provider` | Provider app installed | Readiness signal Helm trusts | Trust config it must match |
 | -------------------------- | ---------------------- | --------------------------- | -------------------------- |
-| `codex-github` (current default) | Codex posts a PR review on a recent PR (manually or automatically triggered) | Submitted **`pull_request_review`** (`action: submitted`) carrying `review.commit_id`, from a trusted review-**author** login | `review.external.codex_github.trusted_identities` (exact login, `[bot]` suffix required) |
-| `coderabbit` (rollback) | CodeRabbit posts a review on a recent PR | GitHub **status** whose context is allowlisted, from a trusted sender login | `review.external.coderabbit.status_contexts` / `.trusted_identities` |
+| `coderabbit` (current default) | CodeRabbit posts a review on a recent PR | GitHub **status** whose context is allowlisted, from a trusted sender login | `review.external.coderabbit.status_contexts` / `.trusted_identities` |
+| `codex-github` (opt-in, watched runs only) | Codex posts a PR review on a recent PR (manually or automatically triggered) | Submitted **`pull_request_review`** (`action: submitted`) carrying `review.commit_id`, from a trusted review-**author** login | `review.external.codex_github.trusted_identities` (exact login, `[bot]` suffix required) |
 | `bugbot` (rollback) | Cursor Bugbot posts a check run on a recent PR | GitHub **check run** whose name is allowlisted, from a trusted GitHub App identity | `review.external.bugbot.check_names` / `.trusted_app_identities` |
 
 > Readiness is name **and** identity: an allowlisted name from an untrusted app or
@@ -74,8 +77,9 @@ Then satisfy the row for the **configured** provider only:
 
 ## Codex trigger and readiness
 
-Only relevant while `review.external.provider` is `codex-github`. Two things make
-this provider behave unlike the other two, and both are operator responsibilities:
+Only relevant while `review.external.provider` is `codex-github`. Three things
+make this provider behave unlike the other two; the first two are operator
+responsibilities, and the third is why it is **not the default**:
 
 **1. Nothing triggers the review on Helm's behalf.** `ExternalReviewAdapter` is a
 read-only contract — Helm reads the review, it never asks for one (ADR-036
@@ -105,10 +109,10 @@ gh api repos/<owner>/<repo>/pulls/<pr>/reviews \
 gh pr comment <pr> --body "@codex review"
 ```
 
-A run with **no** findings ends as a 👍 reaction rather than a submitted review —
-that is *not* readiness. The adapter only resolves on a submitted review pinned
-to the target revision, so keep deferring (or push a commit and re-trigger)
-until the `reviews` query above returns a row.
+Only a **submitted** review counts. A draft (`state: PENDING`, `submitted_at:
+null`) shows up in the `reviews` query above but carries no findings yet; the
+adapter skips it and keeps deferring, so read `submitted_at` before concluding
+the review has landed.
 
 **2. Readiness is the submitted review itself.** Check the webhook actually
 arrives and is accepted:
@@ -135,13 +139,37 @@ Resolving a Codex review thread retracts its finding: a resolved thread's commen
 is suppressed and cannot be resurrected by the flat review-comments list. Use that
 to flip a scenario-B PR back to `clean` without a new push.
 
+**3. A clean run may produce no terminal signal at all — this is why
+`codex-github` is not the default.** Codex publishes neither a check run nor a
+commit status (verified 2026-08-14: `check-runs` and `status` are empty for
+Codex on both dogfood repos), and a run that finds nothing can end as a 👍
+reaction rather than a submitted review. Helm reads reactions from no provider,
+so there is nothing left to resume on: the PR stays `deferred` until its intent
+expires at `review.external.max_defer_sec`, and re-triggering does not help
+because the rerun is clean too.
+
+Consequences for anyone selecting this provider:
+
+- **Scenario A cannot be driven to a pass on the reaction path.** Reach `clean`
+  the way scenario B does — get Codex to submit a review with findings, then
+  resolve every P0/P1 thread so the same submitted review re-reads as `clean`.
+  An intent that expires with only a 👍 on the PR is the known gap, not a bug in
+  the loop.
+- **Watch the run.** Deferral is indistinguishable from "Codex was quiet", so
+  treat this provider as an operator-attended selection, not a background
+  default.
+- **Making it the default needs a signal first.** Either Codex publishes a check
+  run / status / review on no-findings runs, or Helm gains a reaction-based
+  terminal signal it can trust to be Codex's and to be pinned to the target
+  revision — reactions carry no SHA today, so that is not a small change.
+
 ---
 
 ## Test matrix
 
 | Scenario | Setup | Pass criteria |
 | -------- | ----- | ------------- |
-| **A — Clean exit** | Impl PR with no CRITICAL/HIGH internal findings and the external provider returns zero blocking findings | Dispatch completes `status: done`; item stays in `code-review`; no remediation transition after external review |
+| **A — Clean exit** | Impl PR with no CRITICAL/HIGH internal findings and the external provider returns zero blocking findings | Dispatch completes `status: done`; item stays in `code-review`; no remediation transition after external review. **Under `codex-github`,** the provider must have *submitted* a review for the target SHA — reach that by resolving the findings of an existing submitted review, not by hoping a no-findings rerun lands one (see point 3 above) |
 | **B — External remediation cycle** | The external provider returns a blocking finding that internal reviewers missed | Loop transitions to `remediation`, pushes fix, returns to `code-review`, re-runs internal fanout |
 | **C — Escalation at max_cycles** | Blockers persist across cycles (or inject a non-fixable blocker in a test PR) | Dispatch returns `escalated: true` with stop-rule message; item requires human intervention |
 | **D — Deferred analysis and resume** | Dispatch while the provider's analysis is still running, then let it finish and emit its readiness signal | Dispatch returns `status: deferred` with `reason: analysis_pending`; **exactly one** pending intent is persisted, carrying the configured provider, this `externalId`, this PR number, and the **exact** target revision; the readiness event resumes `reviewer-fanout` **once** — no duplicate job, no second intent |
@@ -201,7 +229,7 @@ Expected order per ADR-036:
 | Item | |
 | PR | |
 | Scenario (A/B/C/D/E) | |
-| Provider under test | `codex-github` (default) / `coderabbit` / `bugbot` |
+| Provider under test | `coderabbit` (default) / `bugbot` / `codex-github` (opt-in) |
 | Codex trigger (if `codex-github`) | automatic (*Automatic reviews*) / manual (`@codex review`) / none (negative case E′) |
 | Cycles completed | |
 | External adapter result | `clean` / `needs_fixes` / `skipped` / `escalate` / `deferred` (`reason: analysis_pending` — resumable, not terminal) (see ADR-036 `ExternalReviewResult`) |

@@ -36,18 +36,21 @@ workflow:
 
 review:
   external:
-    # Codex GitHub is the active dogfood reviewer (ADR-036 addendum, 2026-08-14).
-    # CodeRabbit rate-limited every review on the open PRs, so it stopped
-    # producing signal; its config stays below as rollback, as does Bugbot's.
-    # Haystack was retired end-to-end by lhpaul/helm#85 (ADR-036 addendum) —
-    # the product schema now rejects `provider: haystack` and any
-    # `review.external.haystack` block.
+    # CodeRabbit is the active dogfood reviewer. Haystack was retired
+    # end-to-end by lhpaul/helm#85 (ADR-036 addendum) — the product schema now
+    # rejects `provider: haystack` and any `review.external.haystack` block.
     #
-    # Codex publishes no status or check run: it signals completion by
-    # submitting a PR review, which is also the readiness webhook Helm resumes
-    # from. Reviews are not automatic — enable "Automatic reviews" in Codex's
-    # GitHub settings, or comment `@codex review` on the PR.
-    provider: codex-github
+    # `codex-github` was briefly the default (2026-08-14) and was rolled back
+    # the same day: Codex has no terminal signal for a *clean* run. It
+    # publishes neither a check run nor a commit status, and a run that finds
+    # nothing may end as a 👍 reaction rather than a submitted review — which
+    # Helm cannot read. A clean PR then stays deferred until its intent
+    # expires, and re-triggering does not help because the rerun is clean too.
+    # The `codex_github` block below stays configured and supported: select it
+    # per-run when an operator is watching the loop, and make it the default
+    # only once Codex exposes a clean terminal signal Helm can trust.
+    # Bugbot's config likewise stays below as the second rollback.
+    provider: coderabbit
     defer_when_pending: true
     resume_on_check_run: true
     codex_github:
