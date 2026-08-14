@@ -167,6 +167,32 @@ Escalate to human when:
 
 Do not implement unbounded review↔remediate loops.
 
+**Escalation comment — upsert, not append** (added 2026-08-14, lhpaul/helm#93).
+Every escalation renders the `<!-- helm:review-loop-escalation -->` comment and
+**upserts it by marker** on the PR, the same contract the Review Loop Summary
+already uses (§5). A still-blocked item re-escalates on every re-dispatch, and
+appending buried the PR under identical comments; from this decision on, an
+escalation rewrites the newest marked comment instead of adding one. The upsert
+applies to every reason code, internal and external. There is no dedup
+migration — comments left by earlier runs stay where they are, and the newest
+of them is the one subsequent escalations update.
+
+Because the comment is rewritten in place, it must be self-contained — it
+carries the current reason, the cycles completed in this dispatch, the lifetime
+lane counters when the caller knows them (ADR-042), and the external signal.
+The escalation *history* is not kept on the PR: it lives in the item's history
+events, which are idempotent per `(lane, reason, cyclesTotal)` (ADR-042 §5), so
+the PR shows the latest state and the item shows how it got there.
+
+Posting stays best-effort: a failed upsert is swallowed rather than converting
+an escalation into a loop crash — the operator still gets `escalated` and
+`escalationReason` on the job result.
+
+**Known limitation:** the loop never retracts the comment. An item that
+escalates and then converges on a later dispatch leaves the last escalation
+comment on the PR; the clean-exit signals are the Review Loop Summary and the
+item's stage, not the absence of this comment.
+
 ### 7. Relationship to ADR-019
 
 ADR-019's single-pass remediation and no re-fanout is **superseded in intent** for
@@ -312,6 +338,89 @@ text, which is now provider-neutral — that text is matched against live findin
 by the review loop, so naming a retired provider there would only narrow matching
 against CodeRabbit and Bugbot output. Provenance moved into `**Origin:**` rather
 than being dropped.
+
+---
+
+## Addendum — Codex GitHub provider (2026-08-14)
+
+**`codex-github` is added as a third external review provider.** The adapter
+contract in the body of this ADR is unchanged; what this addendum records is a
+provider whose *readiness signal* is a shape the earlier two did not have.
+
+> **Status correction (same day):** `codex-github` was briefly made the dogfood
+> default and was **rolled back to `coderabbit`** before this addendum shipped —
+> see *Not the default: no terminal signal on a clean run* below. It stays fully
+> implemented and supported as an opt-in selection.
+
+**Why it was tried:** CodeRabbit rate-limited every review invocation on the open
+dogfood PRs (lhpaul/helm#95, lhpaul/helm-knowledge#67), so it stopped producing
+signal. Its rate-limited `success` status is already normalized to `skipped`
+rather than `clean` — correct, but it means the loop learns nothing and burns its
+skip budget. Codex is already the runtime behind every Helm specialist, so its
+GitHub reviewer bills against the same ChatGPT subscription.
+
+**The readiness signal is a submitted PR review.** Codex publishes no commit
+status and no reliable check run. It signals completion by submitting a GitHub
+review, so:
+
+- **Trust anchor:** the review **author login**, allowlisted exactly
+  (`chatgpt-codex-connector[bot]`). This is Option C, the same shape as the
+  CodeRabbit status-sender check. The `[bot]` suffix is required in the
+  allowlist: a human can register the un-suffixed login, so matching there is
+  never relaxed. Check-run **app** identities are matched with the suffix
+  ignored, because that value comes from GitHub's app record rather than a
+  user-settable account name.
+- **Readiness webhook:** `pull_request_review` with `action: submitted`, carrying
+  `review.commit_id`. It must still match the stored provider, item, PR number,
+  and exact target revision before a resume is enqueued — same rule as the
+  check-run and status paths, no new exception.
+- **"Not reviewed yet" is `deferred`, not `skipped`.** Bugbot and CodeRabbit both
+  have a pending signal to read; Codex has none, so a missing review is
+  indistinguishable from an unfinished one. Returning `skipped` would spend the
+  repeated-skip budget waiting for something that only arrives by webhook, so the
+  adapter defers and lets `max_defer_sec` bound the wait.
+- **A draft review is not readiness.** GitHub's reviews endpoint exposes a
+  `PENDING` review (with `submitted_at: null`) before its author submits it, and
+  a draft carries no inline comments. Selecting it would fall through to `clean`
+  on an empty finding set, so the loader requires a submitted review — the same
+  contract the webhook path already enforces via `action: submitted`.
+
+**Not the default: no terminal signal on a clean run.** Codex publishes no check
+run and no commit status, and a run that finds nothing can end as a 👍 reaction
+rather than a submitted review. Helm reads reactions from no provider, and a
+reaction carries no `commit_id` to pin to the target revision even if it did — so
+a genuinely clean PR has nothing to resume on and sits `deferred` until
+`max_defer_sec` expires the intent. Re-triggering does not help: the rerun is
+clean too. This is the decisive difference from the other two providers, whose
+worst case (`skipped`) is still terminal and lets the loop make progress.
+
+Consequently the dogfood default returns to `coderabbit`, and `codex-github` is
+selected per-run where an operator is watching the loop. Promoting it to a
+default requires one of: Codex publishing a check run, status, or review on
+no-findings runs; or Helm gaining a reaction-based terminal signal that can be
+attributed to Codex **and** pinned to a revision. Neither exists today.
+
+**Severity mapping:** Codex reports on its own P-scale — `P0 → critical`,
+`P1 → high`, `P2 → medium`, `P3 → low`. An unlabeled comment normalizes to
+`high`, not the `medium` the other two adapters use as their unknown-severity
+default: Codex only posts what it already judged high-priority, so an unparsed
+label must safe-fail toward blocking. A `CHANGES_REQUESTED` review blocks even
+when no inline finding survives; a `DISMISSED` review is `skipped`, never read
+as a clean bill.
+
+**Operator prerequisite (not a code contract).** Codex reviews are not automatic
+by default — the repo needs *Automatic reviews* enabled in Codex's GitHub
+settings, or an `@codex review` comment on the PR. Helm does **not** request the
+review itself: `ExternalReviewAdapter` is a read-only contract, and having a
+poller post comments would both widen it and risk comment spam on every deferred
+cycle. Until automatic reviews are on, a deferred intent for an untriggered PR
+simply expires.
+
+**Rollback (exercised 2026-08-14):** `coderabbit` and `bugbot` remain fully
+supported. Reverting is a one-line `review.external.provider` change in the
+product config plus flipping `auto_review.enabled` back on in `.coderabbit.yaml`
+(both repos); every provider block is kept in the dogfood config for exactly that
+reason. Selecting `codex-github` again is the same one-line change in reverse.
 
 ---
 
