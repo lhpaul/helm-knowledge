@@ -93,7 +93,9 @@ read-only contract — Helm reads the review, it never asks for one (ADR-036
   ([settings](https://chatgpt.com/codex/cloud/settings/environments)); without
   one Codex answers `To use Codex here, create an environment for this repo`
   and submits an empty review — observed on `helm-knowledge` 2026-08-14, where
-  automatic reviews worked and the manual trigger did not.
+  automatic reviews worked and the manual trigger did not. That empty
+  environment-error review is not a clean result: reject it as
+  `skipped` / `unavailable` before evaluating findings.
 
 Verify which one applies **before** dispatching, otherwise a correct deferral
 looks like a hang:
@@ -103,7 +105,7 @@ looks like a hang:
 gh pr view <pr> --json headRefOid --jq .headRefOid
 gh api repos/<owner>/<repo>/pulls/<pr>/reviews \
   --jq '.[] | select(.user.login=="chatgpt-codex-connector[bot]")
-        | {state, commit_id, submitted_at}'
+        | {state, commit_id, submitted_at, body}'
 
 # Manual path: request one, then re-run the query above until it appears
 gh pr comment <pr> --body "@codex review"
@@ -303,8 +305,8 @@ Notes:
 | External `status: deferred` + `analysis_pending` | Provider analysis still running | Expected — Helm stores the intent and resumes on the readiness webhook. If it never resumes, check every matching key, because any mismatch is a deliberate no-op rather than a failure: `resume_on_check_run: true`; the readiness signal's name/context is allowlisted **and** its app/sender identity is trusted; and the event matches the stored **provider**, **item** (`externalId`), **PR number**, and **exact target revision** |
 | Codex run deferred forever, no review on the PR | Nobody triggered Codex — *Automatic reviews* off and no `@codex review` comment | Expected, not a bug: Helm never requests the review (read-only adapter). Enable automatic reviews or comment `@codex review`, then wait for the submitted review; the untriggered intent expires at `review.external.max_defer_sec` (default 30 min) |
 | Codex reviewed the PR but the loop never resumed | Webhook not subscribed to **Pull request review**, review author login not exactly allowlisted, missing `review.commit_id`, or the review is pinned to a stale SHA | Check the four in that order. `chatgpt-codex-connector[bot]` must appear verbatim in `review.external.codex_github.trusted_identities` — the un-suffixed login is deliberately untrusted. A review pinned to an older head SHA is a no-op by design |
-| `@codex review` answers `To use Codex here, create an environment for this repo` | No Codex cloud environment exists for the repo — the manual trigger needs one even when automatic reviews already work | Create the environment in [Codex settings](https://chatgpt.com/codex/cloud/settings/environments), or fall back to the automatic path (push / mark ready). The empty review Codex submits alongside that message carries no findings, so scenario E's manual leg cannot pass until the environment exists |
-| Codex left a 👍 reaction and no review | Codex found nothing to flag — a reaction is not a readiness signal | The adapter keeps deferring; push a commit or comment `@codex review` to get a submitted review it can read |
+| `@codex review` answers `To use Codex here, create an environment for this repo` | No Codex cloud environment exists for the repo — the manual trigger needs one even when automatic reviews already work | Treat the submitted empty environment-error review as `skipped` / `unavailable`, not `clean`. Create the environment in [Codex settings](https://chatgpt.com/codex/cloud/settings/environments), or fall back to the automatic path (push / mark ready). Scenario E's manual leg cannot pass until the environment exists |
+| Codex left a 👍 reaction and no review | Codex found nothing to flag — a reaction is not a readiness signal | The adapter keeps deferring until timeout. Do not prescribe retriggers as a fix: another clean run can leave the same reaction-only outcome. For unattended dogfood, use `coderabbit`; for an attended Codex pilot, record the gap and adjudicate manually or add a trusted SHA-pinned signal before making this path pass |
 | Codex advisory treated as a blocker | Comment carried no parseable `P0`–`P3` label, so it safe-failed to `high` | Intended (ADR-036): Codex only posts what it judged high-priority. Resolve the thread to retract it, or relabel; do not widen `codex_github.blocking_severities` |
 | Codex `DISMISSED` review read as unavailable | A dismissed review is `skipped`, never `clean` | Expected — get a fresh review rather than treating the dismissal as a pass |
 | Dispatch `escalated: true` | Adapter returned `escalate`, or the skip budget ran out | Check job JSON for `escalationReason` (`external_escalate`, `external_repeated_skip`); the loop retries skips up to `review.loop.stop_rule.no_progress_cycles` before escalating with a PR comment |
