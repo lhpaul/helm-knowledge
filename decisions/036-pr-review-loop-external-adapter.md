@@ -185,6 +185,11 @@ Posting stays best-effort: a failed upsert is swallowed rather than converting
 an escalation into a loop crash — the operator still gets `escalated` and
 `escalationReason` on the job result.
 
+**Known limitation:** the loop never retracts the comment. An item that
+escalates and then converges on a later dispatch leaves the last escalation
+comment on the PR; the clean-exit signals are the Review Loop Summary and the
+item's stage, not the absence of this comment.
+
 ### 7. Relationship to ADR-019
 
 ADR-019's single-pass remediation and no re-fanout is **superseded in intent** for
