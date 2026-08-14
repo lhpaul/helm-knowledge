@@ -36,13 +36,33 @@ workflow:
 
 review:
   external:
-    # CodeRabbit is supported by lhpaul/helm#86, merged into develop.
+    # Codex GitHub is the active dogfood reviewer (ADR-036 addendum, 2026-08-14).
+    # CodeRabbit rate-limited every review on the open PRs, so it stopped
+    # producing signal; its config stays below as rollback, as does Bugbot's.
     # Haystack was retired end-to-end by lhpaul/helm#85 (ADR-036 addendum) —
     # the product schema now rejects `provider: haystack` and any
-    # `review.external.haystack` block. Bugbot stays as rollback config.
-    provider: coderabbit
+    # `review.external.haystack` block.
+    #
+    # Codex publishes no status or check run: it signals completion by
+    # submitting a PR review, which is also the readiness webhook Helm resumes
+    # from. Reviews are not automatic — enable "Automatic reviews" in Codex's
+    # GitHub settings, or comment `@codex review` on the PR.
+    provider: codex-github
     defer_when_pending: true
     resume_on_check_run: true
+    codex_github:
+      # Exact review-author logins. The `[bot]` account is the app; the
+      # un-suffixed login is left out on purpose (a human could register it).
+      trusted_identities:
+        - 'chatgpt-codex-connector[bot]'
+      # Only used to name an in-flight analysis in the deferral reason.
+      check_names:
+        - Codex
+        - Codex Review
+      # Codex only reports P0/P1, which normalize to critical/high.
+      blocking_severities:
+        - critical
+        - high
     bugbot:
       # GitHub check-run name observed in dogfood (Cursor app).
       check_names:

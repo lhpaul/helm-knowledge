@@ -341,6 +341,64 @@ than being dropped.
 
 ---
 
+## Addendum — Codex GitHub provider (2026-08-14)
+
+**`codex-github` is added as a third external review provider, and is now the
+one Helm dogfoods with.** The adapter contract in the body of this ADR is
+unchanged; what this addendum records is a provider whose *readiness signal* is
+a shape the earlier two did not have.
+
+**Why:** CodeRabbit rate-limited every review invocation on the open dogfood PRs
+(lhpaul/helm#95, lhpaul/helm-knowledge#67), so it stopped producing signal. Its
+rate-limited `success` status is already normalized to `skipped` rather than
+`clean` — correct, but it means the loop learns nothing and burns its skip
+budget. Codex is already the runtime behind every Helm specialist, so its GitHub
+reviewer bills against the same ChatGPT subscription.
+
+**The readiness signal is a submitted PR review.** Codex publishes no commit
+status and no reliable check run. It signals completion by submitting a GitHub
+review, so:
+
+- **Trust anchor:** the review **author login**, allowlisted exactly
+  (`chatgpt-codex-connector[bot]`). This is Option C, the same shape as the
+  CodeRabbit status-sender check. The `[bot]` suffix is required in the
+  allowlist: a human can register the un-suffixed login, so matching there is
+  never relaxed. Check-run **app** identities are matched with the suffix
+  ignored, because that value comes from GitHub's app record rather than a
+  user-settable account name.
+- **Readiness webhook:** `pull_request_review` with `action: submitted`, carrying
+  `review.commit_id`. It must still match the stored provider, item, PR number,
+  and exact target revision before a resume is enqueued — same rule as the
+  check-run and status paths, no new exception.
+- **"Not reviewed yet" is `deferred`, not `skipped`.** Bugbot and CodeRabbit both
+  have a pending signal to read; Codex has none, so a missing review is
+  indistinguishable from an unfinished one. Returning `skipped` would spend the
+  repeated-skip budget waiting for something that only arrives by webhook, so the
+  adapter defers and lets `max_defer_sec` bound the wait.
+
+**Severity mapping:** Codex reports on its own P-scale — `P0 → critical`,
+`P1 → high`, `P2 → medium`, `P3 → low`. An unlabeled comment normalizes to
+`high`, not the `medium` the other two adapters use as their unknown-severity
+default: Codex only posts what it already judged high-priority, so an unparsed
+label must safe-fail toward blocking. A `CHANGES_REQUESTED` review blocks even
+when no inline finding survives; a `DISMISSED` review is `skipped`, never read
+as a clean bill.
+
+**Operator prerequisite (not a code contract).** Codex reviews are not automatic
+by default — the repo needs *Automatic reviews* enabled in Codex's GitHub
+settings, or an `@codex review` comment on the PR. Helm does **not** request the
+review itself: `ExternalReviewAdapter` is a read-only contract, and having a
+poller post comments would both widen it and risk comment spam on every deferred
+cycle. Until automatic reviews are on, a deferred intent for an untriggered PR
+simply expires.
+
+**Rollback:** `coderabbit` and `bugbot` remain fully supported. Reverting is a
+one-line `review.external.provider` change in the product config plus flipping
+`auto_review.enabled` back on in `.coderabbit.yaml`; both blocks are kept in the
+dogfood config for exactly that reason.
+
+---
+
 ## Revisit when
 
 - A second external provider is needed in production → add adapter only; revisit
