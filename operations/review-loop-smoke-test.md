@@ -84,7 +84,12 @@ read-only contract — Helm reads the review, it never asks for one (ADR-036
 - **Automatic:** *Automatic reviews* is enabled for the repo in
   [Codex's GitHub settings](https://chatgpt.com/codex/cloud/settings/general) —
   Codex then reviews on PR open and on draft→ready.
-- **Manual:** someone comments `@codex review` on the PR.
+- **Manual:** someone comments `@codex review` on the PR. This path additionally
+  needs a **Codex cloud environment for that repo**
+  ([settings](https://chatgpt.com/codex/cloud/settings/environments)); without
+  one Codex answers `To use Codex here, create an environment for this repo`
+  and submits an empty review — observed on `helm-knowledge` 2026-08-14, where
+  automatic reviews worked and the manual trigger did not.
 
 Verify which one applies **before** dispatching, otherwise a correct deferral
 looks like a hang:
@@ -263,6 +268,7 @@ Notes:
 | External `status: deferred` + `analysis_pending` | Provider analysis still running | Expected — Helm stores the intent and resumes on the readiness webhook. If it never resumes, check every matching key, because any mismatch is a deliberate no-op rather than a failure: `resume_on_check_run: true`; the readiness signal's name/context is allowlisted **and** its app/sender identity is trusted; and the event matches the stored **provider**, **item** (`externalId`), **PR number**, and **exact target revision** |
 | Codex run deferred forever, no review on the PR | Nobody triggered Codex — *Automatic reviews* off and no `@codex review` comment | Expected, not a bug: Helm never requests the review (read-only adapter). Enable automatic reviews or comment `@codex review`, then wait for the submitted review; the untriggered intent expires at `review.external.max_defer_sec` (default 30 min) |
 | Codex reviewed the PR but the loop never resumed | Webhook not subscribed to **Pull request review**, review author login not exactly allowlisted, missing `review.commit_id`, or the review is pinned to a stale SHA | Check the four in that order. `chatgpt-codex-connector[bot]` must appear verbatim in `review.external.codex_github.trusted_identities` — the un-suffixed login is deliberately untrusted. A review pinned to an older head SHA is a no-op by design |
+| `@codex review` answers `To use Codex here, create an environment for this repo` | No Codex cloud environment exists for the repo — the manual trigger needs one even when automatic reviews already work | Create the environment in [Codex settings](https://chatgpt.com/codex/cloud/settings/environments), or fall back to the automatic path (push / mark ready). The empty review Codex submits alongside that message carries no findings, so scenario E's manual leg cannot pass until the environment exists |
 | Codex left a 👍 reaction and no review | Codex found nothing to flag — a reaction is not a readiness signal | The adapter keeps deferring; push a commit or comment `@codex review` to get a submitted review it can read |
 | Codex advisory treated as a blocker | Comment carried no parseable `P0`–`P3` label, so it safe-failed to `high` | Intended (ADR-036): Codex only posts what it judged high-priority. Resolve the thread to retract it, or relabel; do not widen `codex_github.blocking_severities` |
 | Codex `DISMISSED` review read as unavailable | A dismissed review is `skipped`, never `clean` | Expected — get a fresh review rather than treating the dismissal as a pass |
