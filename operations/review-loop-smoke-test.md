@@ -136,8 +136,15 @@ Verdict mapping to expect once the review lands (ADR-036):
 | No review yet for this revision | `deferred` / `analysis_pending` (never `skipped` — Codex has no pending signal to read) |
 
 Resolving a Codex review thread retracts its finding: a resolved thread's comment
-is suppressed and cannot be resurrected by the flat review-comments list. Use that
-to flip a scenario-B PR back to `clean` without a new push.
+is suppressed and cannot be resurrected by the flat review-comments list. If the
+fix did not change the PR head, resolving the blocking P0/P1 threads can flip the
+same scenario-B review back to `clean`.
+
+If the remediation pushed a new commit, first trigger Codex again and wait for a
+submitted review whose `review.commit_id` equals the new head SHA. The old review
+belongs to the previous target revision and cannot satisfy readiness for the
+current intent, even if every old thread is resolved or outdated. Only evaluate
+resolved threads after the submitted review is pinned to the current head.
 
 **3. A clean run may produce no terminal signal at all — this is why
 `codex-github` is not the default.** Codex publishes neither a check run nor a
