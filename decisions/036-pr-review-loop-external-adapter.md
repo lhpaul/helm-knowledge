@@ -167,6 +167,24 @@ Escalate to human when:
 
 Do not implement unbounded review↔remediate loops.
 
+**Escalation comment — upsert, not append** (added 2026-08-14, lhpaul/helm#93).
+Every escalation renders the `<!-- helm:review-loop-escalation -->` comment and
+**upserts it by marker** on the PR, the same contract the Review Loop Summary
+already uses (§5). One escalation comment per PR: a still-blocked item
+re-escalates on every re-dispatch, and appending buried the PR under identical
+comments. The upsert applies to every reason code, internal and external.
+
+Because the comment is rewritten in place, it must be self-contained — it
+carries the current reason, the cycles completed in this dispatch, the lifetime
+lane counters when the caller knows them (ADR-042), and the external signal.
+The escalation *history* is not kept on the PR: it lives in the item's history
+events, which are idempotent per `(lane, reason, cyclesTotal)` (ADR-042 §5), so
+the PR shows the latest state and the item shows how it got there.
+
+Posting stays best-effort: a failed upsert is swallowed rather than converting
+an escalation into a loop crash — the operator still gets `escalated` and
+`escalationReason` on the job result.
+
 ### 7. Relationship to ADR-019
 
 ADR-019's single-pass remediation and no re-fanout is **superseded in intent** for

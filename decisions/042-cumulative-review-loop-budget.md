@@ -119,11 +119,18 @@ webhook at the same budget state is a no-op, while an escalation after more
 cycles is recorded as the distinct event it is. `escalatedAt` alone is not a
 stable dedup key and is not used as one.
 
-The escalation **PR comment** is not yet deduplicated — `postPRComment` appends,
-inherited from ADR-036, so repeated escalations post repeated comments. Making it
-an upsert-by-marker (as the ADR-036 Review Loop Summary already is) changes the
-shared escalation path for every reason code, so it is tracked separately in
-lhpaul/helm#93 rather than folded into this ADR.
+The escalation **PR comment** is deduplicated the same way (lhpaul/helm#93,
+ADR-036 §6): it is upserted by its `<!-- helm:review-loop-escalation -->` marker
+instead of appended, so a lane that re-escalates on every re-dispatch keeps one
+comment on the PR rather than a stack of identical ones. It is rewritten in
+place with the latest reason, this dispatch's cycle count, the lane's lifetime
+counters (`cyclesTotal` of `max_cycles_cumulative`), and the external signal.
+
+PR comment and history event answer different questions and are deduplicated
+differently on purpose: the comment is a **state** surface (what is blocking now)
+so last-write-wins is right, while the history events are the **audit** surface
+(each distinct budget state at which this item escalated), which is why they key
+on `(lane, reason, cyclesTotal)` instead of collapsing to one.
 
 ### 6. Monotonic writes
 
@@ -220,9 +227,9 @@ durable payload. Revisit if count-based carry-over proves too coarse.
 - Cross-dispatch progress detection proves too coarse without sticky
   fingerprints (alternative E).
 - Multi-repo remediation lands — the lane key may need a repo dimension.
-- The escalation PR comment should upsert by marker instead of appending, so a
-  repeatedly re-dispatched item does not accumulate identical comments
-  (§5, lhpaul/helm#93).
+- Operators ask for the escalation history on the PR itself. §5 keeps one
+  upserted comment and puts the history on the item; if the item view is not
+  where operators look, revisit (lhpaul/helm#93).
 
 ---
 
