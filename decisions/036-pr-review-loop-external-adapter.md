@@ -170,9 +170,12 @@ Do not implement unbounded review↔remediate loops.
 **Escalation comment — upsert, not append** (added 2026-08-14, lhpaul/helm#93).
 Every escalation renders the `<!-- helm:review-loop-escalation -->` comment and
 **upserts it by marker** on the PR, the same contract the Review Loop Summary
-already uses (§5). One escalation comment per PR: a still-blocked item
-re-escalates on every re-dispatch, and appending buried the PR under identical
-comments. The upsert applies to every reason code, internal and external.
+already uses (§5). A still-blocked item re-escalates on every re-dispatch, and
+appending buried the PR under identical comments; from this decision on, an
+escalation rewrites the newest marked comment instead of adding one. The upsert
+applies to every reason code, internal and external. There is no dedup
+migration — comments left by earlier runs stay where they are, and the newest
+of them is the one subsequent escalations update.
 
 Because the comment is rewritten in place, it must be self-contained — it
 carries the current reason, the cycles completed in this dispatch, the lifetime

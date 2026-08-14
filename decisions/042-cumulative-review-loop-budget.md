@@ -121,8 +121,9 @@ stable dedup key and is not used as one.
 
 The escalation **PR comment** is deduplicated the same way (lhpaul/helm#93,
 ADR-036 §6): it is upserted by its `<!-- helm:review-loop-escalation -->` marker
-instead of appended, so a lane that re-escalates on every re-dispatch keeps one
-comment on the PR rather than a stack of identical ones. It is rewritten in
+instead of appended, so a lane that re-escalates on every re-dispatch stops
+adding a comment per escalation (comments from before that change are not
+cleaned up). It is rewritten in
 place with the latest reason, this dispatch's cycle count, the lane's lifetime
 counters (`cyclesTotal` of `max_cycles_cumulative`), and the external signal.
 
