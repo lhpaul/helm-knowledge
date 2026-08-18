@@ -36,9 +36,11 @@ workflow:
 
 review:
   external:
-    # CodeRabbit is the active dogfood reviewer. Haystack was retired
-    # end-to-end by lhpaul/helm#85 (ADR-036 addendum) — the product schema now
-    # rejects `provider: haystack` and any `review.external.haystack` block.
+    # `codex-github` is the active reviewer, in an **open dogfood trial**
+    # (lhpaul/helm#100) — not yet promoted to the standing default. Haystack was
+    # retired end-to-end by lhpaul/helm#85 (ADR-036 addendum) — the product
+    # schema now rejects `provider: haystack` and any `review.external.haystack`
+    # block.
     #
     # `codex-github` was briefly the default (2026-08-14) and was rolled back
     # the same day: Codex had no terminal signal for a *clean* run, so a clean
@@ -49,12 +51,19 @@ review:
     # rate-limited or environment-missing response ranks as unavailable, a
     # stale or draft review is dropped, and a reaction-only response never
     # enters the evidence set at all, since Helm reads no reactions
-    # (ADR-036, 2026-08-18 addendum §4). The default stays
-    # `coderabbit` until the signal is dogfooded on a real PR with validation
-    # evidence captured, and the switch is approved on its own change — the
-    # 2026-08-14 rollback is why it is not bundled with the implementation.
-    # Bugbot's config likewise stays below as the second rollback.
-    provider: coderabbit
+    # (ADR-036, 2026-08-18 addendum §4).
+    #
+    # 2026-08-18: switched to `codex-github` to run the scoped trial ADR-036 §7
+    # requires — one real PR reviewed end-to-end under the new contract, with
+    # validation evidence captured on lhpaul/helm#100 (including the
+    # abbreviated-marker-SHA width Codex emits in practice, ADR-036 §6). This
+    # switch is the trial, on its own change; **promotion** to the standing
+    # default remains a separate, explicitly approved decision recorded on #100,
+    # and ADR-036 §7 is not amended until that decision lands. The
+    # 2026-08-14 rollback is the precedent for keeping the two apart. If the
+    # trial fails, revert this file to `provider: coderabbit` — its config stays
+    # below as the rollback target, as Bugbot's does.
+    provider: codex-github
     defer_when_pending: true
     resume_on_check_run: true
     codex_github:
