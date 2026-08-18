@@ -41,14 +41,18 @@ review:
     # rejects `provider: haystack` and any `review.external.haystack` block.
     #
     # `codex-github` was briefly the default (2026-08-14) and was rolled back
-    # the same day: Codex has no terminal signal for a *clean* run. It
-    # publishes neither a check run nor a commit status, and a run that finds
-    # nothing may end as a 👍 reaction rather than a submitted review — which
-    # Helm cannot read. A clean PR then stays deferred until its intent
-    # expires, and re-triggering does not help because the rerun is clean too.
-    # The `codex_github` block below stays configured and supported: select it
-    # per-run when an operator is watching the loop, and make it the default
-    # only once Codex exposes a clean terminal signal Helm can trust.
+    # the same day: Codex had no terminal signal for a *clean* run, so a clean
+    # PR stayed deferred until its intent expired.
+    #
+    # lhpaul/helm#96 (2026-08-18) implemented that signal — head-pinned review
+    # or `Reviewed commit` summary evidence. Nothing else reads as clean: a
+    # rate-limited or environment-missing response ranks as unavailable, a
+    # stale or draft review is dropped, and a reaction-only response never
+    # enters the evidence set at all, since Helm reads no reactions
+    # (ADR-036, 2026-08-18 addendum §4). The default stays
+    # `coderabbit` until the signal is dogfooded on a real PR with validation
+    # evidence captured, and the switch is approved on its own change — the
+    # 2026-08-14 rollback is why it is not bundled with the implementation.
     # Bugbot's config likewise stays below as the second rollback.
     provider: coderabbit
     defer_when_pending: true

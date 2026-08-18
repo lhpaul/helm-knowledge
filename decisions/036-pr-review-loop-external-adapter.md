@@ -424,6 +424,193 @@ reason. Selecting `codex-github` again is the same one-line change in reverse.
 
 ---
 
+## Addendum — Codex trusted clean terminal signal (2026-08-18, lhpaul/helm#96)
+
+The Codex GitHub addendum above closed with a blocking gap: Codex had **no
+terminal signal for a clean run** Helm could trust, so a genuinely clean PR sat
+`deferred` until `max_defer_sec` expired the intent. This addendum defines the
+contract that closes it, ported from the framework's
+[ai-dev-framework-template#1490](https://github.com/lhpaul/ai-dev-framework-template/pull/1490)
+(`fix(review-loop): require Codex current-head evidence`) and adapted to Helm's
+adapter/loader split.
+
+### 1. The clean-terminal contract Helm expects of a reviewer provider
+
+A provider may return `clean` only on evidence that is **all four** of:
+
+1. **Attributable** — authored by a trusted identity. Review and root-comment
+   **authors** match exactly; only check-run **app** identities relax the `[bot]`
+   suffix, because the app slug comes from GitHub's app record and is not
+   user-settable.
+2. **Head-pinned** — tied to the exact revision under review. For Codex that is
+   a submitted review whose `commit_id` matches the target revision exactly, or a
+   root PR comment whose `Reviewed commit:` marker names it. A submitted review
+   is matched on the full SHA. A marker is matched by **prefix** (minimum 7 hex,
+   either direction), because Codex abbreviates it — see the open decision below.
+3. **Terminal** — a verdict, not an acknowledgement. A 👍 reaction, a "starting a
+   review" comment, or a draft (`PENDING`) review is not a verdict.
+4. **Parseable as a pass** — the body reads as an explicit approval. Anything
+   SHA-pinned that Helm cannot classify is ambiguous, and ambiguous is not clean.
+
+**One outcome per failure mode.** Evidence failing (1) or (2) — the wrong author,
+or a revision that is not the one under review — is **not evidence**. It is
+dropped before ranking: it produces no verdict of its own, clean *or* blocking,
+so a stale blocker can never override current-head evidence and a stale summary
+can never clear the current head. Dropping it is not itself a verdict either:
+when nothing else has landed, the absence leaves the loop deferred, and a lane
+that keeps finding nothing terminal exits through the repeated-skip stop rule.
+
+Failing **(3)** lands in the same place, and for the same reason: an
+acknowledgement is not a verdict, so there is nothing to rank. A trusted,
+head-pinned draft (`PENDING`) review is the clean example — it satisfies (1) and
+(2) and still produces no record, because the loader drops it before the adapter
+sees it (`isSubmittedReview`). Terminality is what makes a record exist;
+attribution and head-pinning only decide whether an existing record counts.
+
+A 👍 reaction never gets that far: it carries no reviewed revision, so it cannot
+satisfy (2) in the first place, and Helm reads reactions from no provider. It is
+absent from the evidence set rather than dropped from it.
+
+Only evidence satisfying (1), (2) **and** (3) but failing **(4)** is ranked as
+**unavailable** — a verdict Helm holds but cannot read as a pass. A dismissed
+review is the archetype: submitted, on the right head, and withdrawn.
+
+Two notices are ranked as unavailable without being head-pinned at all, because
+they report on the **integration** rather than on the revision: an exhausted
+usage limit and a missing Codex cloud environment, both from a trusted author. A
+failed root-comment read is ranked too, with no timestamp of its own (§3).
+
+This is what "stale reviews and stale summaries are unavailable" in §4 means:
+stale input cannot produce a clean verdict. It does not mean a stale review is
+ranked as an unavailability record — it is dropped, per the rule above. §3's
+"blocking wins regardless of age" is likewise scoped to head-pinned evidence
+only: age there means *the timestamp of two competing current-head records*, not
+a licence for a previous revision's finding to outrank this one's.
+
+### 2. Root PR comments are the second evidence channel
+
+Codex publishes no check run and no commit status, and it does not always submit
+a review — but it does reliably post a root comment naming the commit it
+reviewed. Helm now reads those comments (trusted authors only) and classifies
+each one as: SHA-pinned **terminal** evidence, a **usage-limit** notice, a
+**missing-environment** notice, or **ancillary**.
+
+Unavailability wording is only read outside quoted spans, and a multi-backtick or
+3+-tilde run in the body suppresses the **unavailability** classification
+specifically — the terminal verdicts still resolve normally. A Codex review *of
+the classifier itself* quotes the phrases it matches on; without the guard, a
+clean review of this code reads back as `unavailable`.
+
+The `Reviewed commit:` marker gets the mirror-image treatment: it is read from
+unquoted prose only — fenced blocks, block quotes, and 2+ backtick spans are
+removed first — while single-backtick spans are **kept**, since that is where the
+SHA itself lives. Stripping removes matched pairs, so an **unclosed** delimiter
+fails closed: everything from the first surviving run to the end of the body is
+treated as quoted, which is also how Markdown renders an unterminated fence. Quoting a marker and following it with approval prose would
+otherwise let one trusted comment forge clean evidence for the current head
+(surfaced by CodeRabbit on lhpaul/helm#98). The same strip runs in the
+`issue_comment` webhook parser, so a quoted marker cannot emit readiness either.
+
+A head-pinned response that also reports exhausted quota classifies as a
+usage-limit notice rather than an unparseable verdict; a head-pinned **blocking**
+finding still outranks quota wording in the same comment.
+
+### 3. Precedence when evidence disagrees
+
+Ranking applies only to head-pinned evidence and to the dated unavailability
+notices; anything dropped by §1 never reaches it.
+
+1. **Blocking evidence always wins**, whatever its age relative to the other
+   current-head records and whatever else is present. An actionable finding must
+   never hide behind an "unavailable".
+2. A **failed root-comment read** is missing evidence, not absent evidence — a
+   clean submitted review cannot silently override it. It is the one
+   unavailability with no timestamp of its own, so it cannot take part in (3).
+3. Otherwise the **newest** evidence wins; on an exact timestamp tie the
+   less-clean side does.
+
+Both unavailability notices — an exhausted usage limit and a missing Codex
+environment — are **dated records** under rule 3, so neither outlives the
+condition it reported. An operator who creates the Codex environment mid-loop
+has the resulting fresh review supersede the recorded error, and a clean summary
+published after the quota resets supersedes the quota notice. A later bare
+acknowledgement — which carries no information — supersedes neither.
+
+The framework's rule that a usage limit *terminates the invocation immediately*
+is scoped to one poll window, where a fresh review arriving seconds later is
+implausible. Helm has no such window: each adapter call reads a fresh snapshot,
+and the quota comment stays on the PR forever. Ranking it as a sticky flag
+therefore meant a PR that once hit its limit could never read clean from
+root-comment evidence again, grinding on to `external_repeated_skip` long after
+the quota reset. Recency carries the rule correctly here (surfaced by CodeRabbit
+on lhpaul/helm#98).
+
+### 4. What no longer reads as clean
+
+Three distinct outcomes, matching §1's split — none of them `clean`.
+
+**Absent — never enters the evidence set.** `reaction-only`. Helm reads
+reactions from no provider, and a reaction carries no reviewed revision to pin
+to, so it is not input Helm can weigh at all.
+
+**Dropped — reaches Helm, but produces no record.** `untrusted author` ·
+`stale review` · `stale summary` · `draft (PENDING) review`.
+
+Absent and dropped land in the same place operationally: with nothing terminal
+on the current head, the loop stays deferred, and a lane that keeps finding
+nothing exits through the repeated-skip stop rule or expires with
+`max_defer_sec`. They are listed apart because the reason differs, and the
+reason is what an operator debugging a stuck lane needs.
+
+**Ranked as unavailable, each with a `providerReason`.** `dismissed review`
+(`review_dismissed`) · `missing Codex cloud environment` (`environment_missing`) ·
+`exhausted usage limit` (`usage_limit`) · `unparseable SHA-pinned response`
+(`unrecognized_terminal_response`) · `failed root-comment read`
+(`root_comments_unavailable`).
+
+The `external_repeated_skip` escalation names the reason — a quota stop and a
+misconfiguration both read as a bare `unavailable` otherwise, and the human
+receiving the escalation has to tell them apart.
+
+### 5. Resume path
+
+A trusted Codex root comment whose marker names a **full** 40-hex SHA emits
+`external_review_ready` from the `issue_comment` webhook, alongside the existing
+`pull_request_review`/`submitted` path. An abbreviated marker cannot address a
+pending intent (matched by exact revision), so those runs are picked up by the
+adapter on the next poll instead. Widening intent matching to prefix comparison
+is deliberately **not** done here: it loosens a trust-boundary comparison and is
+a product decision, not an implementation detail.
+
+### 6. Open decision — abbreviated marker SHAs (out of scope here)
+
+Marker prefix matching is a deliberate, bounded relaxation, not an oversight:
+Codex abbreviates the SHA it prints, so requiring 40 hex would disable the clean
+signal outright. The comparison is against the **known** target revision, not a
+lookup of an arbitrary prefix, and git keeps abbreviations unique within a repo
+by construction — so a false match needs Codex to have reviewed a *different*
+commit whose abbreviation prefixes the target.
+
+Tightening it — a longer minimum, or requiring the prefix to resolve uniquely
+against the repo — trades that residual risk against possibly disabling the
+signal, since Codex's actual marker width is not contractual. **That trade is a
+product decision and is not made here.** Recorded as open; revisit once dogfood
+runs show the width Codex actually emits.
+
+The webhook resume path already takes the strict side for an unrelated reason: it
+requires a full 40-hex SHA, because a pending intent is addressed by exact
+revision (§5).
+
+### 7. The default reviewer is unchanged
+
+`coderabbit` remains the dogfood default. lhpaul/helm#96 requires the trusted
+signal to be **dogfooded on a real PR with validation evidence captured** before
+the switch, and that has not happened yet. Promotion is a separate, explicitly
+approved change — the 2026-08-14 rollback is the precedent for why it is not
+bundled with the implementation.
+
+---
+
 ## Revisit when
 
 - A second external provider is needed in production → add adapter only; revisit
