@@ -495,15 +495,18 @@ reviewed. Helm now reads those comments (trusted authors only) and classifies
 each one as: SHA-pinned **terminal** evidence, a **usage-limit** notice, a
 **missing-environment** notice, or **ancillary**.
 
-Unavailability wording is only read outside quoted spans, and a body carrying a
-multi-backtick or 3+-tilde run is not classified at all. A Codex review *of the
-classifier itself* quotes the phrases it matches on; without the guard, a clean
-review of this code reads back as `unavailable`.
+Unavailability wording is only read outside quoted spans, and a multi-backtick or
+3+-tilde run in the body suppresses the **unavailability** classification
+specifically — the terminal verdicts still resolve normally. A Codex review *of
+the classifier itself* quotes the phrases it matches on; without the guard, a
+clean review of this code reads back as `unavailable`.
 
 The `Reviewed commit:` marker gets the mirror-image treatment: it is read from
 unquoted prose only — fenced blocks, block quotes, and 2+ backtick spans are
 removed first — while single-backtick spans are **kept**, since that is where the
-SHA itself lives. Quoting a marker and following it with approval prose would
+SHA itself lives. Stripping removes matched pairs, so an **unclosed** delimiter
+fails closed: everything from the first surviving run to the end of the body is
+treated as quoted, which is also how Markdown renders an unterminated fence. Quoting a marker and following it with approval prose would
 otherwise let one trusted comment forge clean evidence for the current head
 (surfaced by CodeRabbit on lhpaul/helm#98). The same strip runs in the
 `issue_comment` webhook parser, so a quoted marker cannot emit readiness either.
