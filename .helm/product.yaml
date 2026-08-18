@@ -45,9 +45,11 @@ review:
     # PR stayed deferred until its intent expired.
     #
     # lhpaul/helm#96 (2026-08-18) implemented that signal — head-pinned review
-    # or `Reviewed commit` summary evidence, with reaction-only, stale,
-    # rate-limited, and environment-missing responses reading as unavailable
-    # rather than clean (ADR-036, 2026-08-18 addendum). The default stays
+    # or `Reviewed commit` summary evidence. Nothing else reads as clean: a
+    # rate-limited or environment-missing response ranks as unavailable, a
+    # stale or draft review is dropped, and a reaction-only response never
+    # enters the evidence set at all, since Helm reads no reactions
+    # (ADR-036, 2026-08-18 addendum §4). The default stays
     # `coderabbit` until the signal is dogfooded on a real PR with validation
     # evidence captured, and the switch is approved on its own change — the
     # 2026-08-14 rollback is why it is not bundled with the implementation.

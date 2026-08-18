@@ -544,13 +544,20 @@ on lhpaul/helm#98).
 
 ### 4. What no longer reads as clean
 
-Two distinct outcomes, matching §1's split — neither of them `clean`.
+Three distinct outcomes, matching §1's split — none of them `clean`.
 
-**Dropped — not evidence, so no verdict of their own.** `reaction-only` ·
-`untrusted author` · `stale review` · `stale summary` · `draft (PENDING) review`.
-With nothing terminal on the current head, the loop stays deferred; a lane that
-keeps finding nothing exits through the repeated-skip stop rule or expires with
-`max_defer_sec`.
+**Absent — never enters the evidence set.** `reaction-only`. Helm reads
+reactions from no provider, and a reaction carries no reviewed revision to pin
+to, so it is not input Helm can weigh at all.
+
+**Dropped — reaches Helm, but produces no record.** `untrusted author` ·
+`stale review` · `stale summary` · `draft (PENDING) review`.
+
+Absent and dropped land in the same place operationally: with nothing terminal
+on the current head, the loop stays deferred, and a lane that keeps finding
+nothing exits through the repeated-skip stop rule or expires with
+`max_defer_sec`. They are listed apart because the reason differs, and the
+reason is what an operator debugging a stuck lane needs.
 
 **Ranked as unavailable, each with a `providerReason`.** `dismissed review`
 (`review_dismissed`) · `missing Codex cloud environment` (`environment_missing`) ·
