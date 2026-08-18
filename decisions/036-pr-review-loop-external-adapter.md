@@ -460,8 +460,22 @@ can never clear the current head. Dropping it is not itself a verdict either:
 when nothing else has landed, the absence leaves the loop deferred, and a lane
 that keeps finding nothing terminal exits through the repeated-skip stop rule.
 
-Evidence satisfying (1) and (2) but failing (3) or (4) **is** evidence, and it
-resolves to **unavailable** — never clean.
+Failing **(3)** lands in the same place, and for the same reason: an
+acknowledgement is not a verdict, so there is nothing to rank. A trusted,
+head-pinned draft (`PENDING`) review and a 👍 reaction both satisfy (1) and (2)
+and still produce no record — the loader drops a draft before the adapter sees
+it (`isSubmittedReview`), and reactions are never read at all. Terminality is
+what makes a record exist; attribution and head-pinning only decide whether an
+existing record counts.
+
+Only evidence satisfying (1), (2) **and** (3) but failing **(4)** is ranked as
+**unavailable** — a verdict Helm holds but cannot read as a pass. A dismissed
+review is the archetype: submitted, on the right head, and withdrawn.
+
+Two notices are ranked as unavailable without being head-pinned at all, because
+they report on the **integration** rather than on the revision: an exhausted
+usage limit and a missing Codex cloud environment, both from a trusted author. A
+failed root-comment read is ranked too, with no timestamp of its own (§3).
 
 This is what "stale reviews and stale summaries are unavailable" in §4 means:
 stale input cannot produce a clean verdict. It does not mean a stale review is
