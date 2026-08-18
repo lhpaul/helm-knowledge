@@ -424,6 +424,95 @@ reason. Selecting `codex-github` again is the same one-line change in reverse.
 
 ---
 
+## Addendum — Codex trusted clean terminal signal (2026-08-18, lhpaul/helm#96)
+
+The Codex GitHub addendum above closed with a blocking gap: Codex had **no
+terminal signal for a clean run** Helm could trust, so a genuinely clean PR sat
+`deferred` until `max_defer_sec` expired the intent. This addendum defines the
+contract that closes it, ported from the framework's
+[ai-dev-framework-template#1490](https://github.com/lhpaul/ai-dev-framework-template/pull/1490)
+(`fix(review-loop): require Codex current-head evidence`) and adapted to Helm's
+adapter/loader split.
+
+### 1. The clean-terminal contract Helm expects of a reviewer provider
+
+A provider may return `clean` only on evidence that is **all four** of:
+
+1. **Attributable** — authored by a trusted identity. Review and root-comment
+   **authors** match exactly; only check-run **app** identities relax the `[bot]`
+   suffix, because the app slug comes from GitHub's app record and is not
+   user-settable.
+2. **Head-pinned** — tied to the exact revision under review. For Codex that is
+   a submitted review whose `commit_id` matches the target revision, or a root PR
+   comment whose `Reviewed commit:` marker names it (abbreviated SHAs match by
+   prefix).
+3. **Terminal** — a verdict, not an acknowledgement. A 👍 reaction, a "starting a
+   review" comment, or a draft (`PENDING`) review is not a verdict.
+4. **Parseable as a pass** — the body reads as an explicit approval. Anything
+   SHA-pinned that Helm cannot classify is ambiguous, and ambiguous is not clean.
+
+Evidence failing (1) or (2) is ignored outright. Evidence satisfying (1) and (2)
+but failing (3) or (4) is **unavailable**, never clean.
+
+### 2. Root PR comments are the second evidence channel
+
+Codex publishes no check run and no commit status, and it does not always submit
+a review — but it does reliably post a root comment naming the commit it
+reviewed. Helm now reads those comments (trusted authors only) and classifies
+each one as: SHA-pinned **terminal** evidence, a **usage-limit** notice, a
+**missing-environment** notice, or **ancillary**.
+
+Unavailability wording is only read outside quoted spans, and a body carrying a
+multi-backtick or 3+-tilde run is not classified at all. A Codex review *of the
+classifier itself* quotes the phrases it matches on; without the guard, a clean
+review of this code reads back as `unavailable`.
+
+### 3. Precedence when evidence disagrees
+
+1. **Blocking evidence always wins**, whatever its age and whatever else is
+   present. An actionable finding must never hide behind an "unavailable".
+2. A **usage-limit** notice stops the invocation: once quota is exhausted, a
+   useful review is not going to arrive moments later in the same window.
+3. A **failed root-comment read** is missing evidence, not absent evidence — a
+   clean submitted review cannot silently override it.
+4. Otherwise the **newest** terminal evidence wins; on an exact timestamp tie the
+   less-clean side does.
+
+Rule 4 is what lets an operator who creates the Codex environment mid-loop have
+the resulting fresh review supersede the recorded environment error, while a
+later bare acknowledgement — which carries no information — never does.
+
+### 4. What is now unavailable rather than clean or indefinitely deferred
+
+`reaction-only` · `stale review or stale summary` · `draft review` · `dismissed
+review` · `missing Codex cloud environment` · `exhausted usage limit` ·
+`unparseable SHA-pinned response` · `failed root-comment read`.
+
+Each carries a `providerReason` on the `skipped` result, which the
+`external_repeated_skip` escalation now names — a quota stop and a
+misconfiguration both read as `unavailable` otherwise, and the human receiving
+the escalation has to tell them apart.
+
+### 5. Resume path
+
+A trusted Codex root comment whose marker names a **full** 40-hex SHA emits
+`external_review_ready` from the `issue_comment` webhook, alongside the existing
+`pull_request_review`/`submitted` path. An abbreviated marker cannot address a
+pending intent (matched by exact revision), so those runs are picked up by the
+adapter on the next poll instead. Widening intent matching to prefix comparison
+is deliberately **not** done here: it loosens a trust-boundary comparison and is
+a product decision, not an implementation detail.
+
+### 6. The default reviewer is unchanged
+
+`coderabbit` remains the dogfood default. lhpaul/helm#96 requires the trusted
+signal to be **dogfooded on a real PR with validation evidence captured** before
+the switch, and that has not happened yet. Promotion is a separate, explicitly
+approved change — the 2026-08-14 rollback is the precedent for why it is not
+bundled with the implementation.
+
+---
+
 ## Revisit when
 
 - A second external provider is needed in production → add adapter only; revisit
