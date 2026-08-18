@@ -462,11 +462,14 @@ that keeps finding nothing terminal exits through the repeated-skip stop rule.
 
 Failing **(3)** lands in the same place, and for the same reason: an
 acknowledgement is not a verdict, so there is nothing to rank. A trusted,
-head-pinned draft (`PENDING`) review and a 👍 reaction both satisfy (1) and (2)
-and still produce no record — the loader drops a draft before the adapter sees
-it (`isSubmittedReview`), and reactions are never read at all. Terminality is
-what makes a record exist; attribution and head-pinning only decide whether an
-existing record counts.
+head-pinned draft (`PENDING`) review is the clean example — it satisfies (1) and
+(2) and still produces no record, because the loader drops it before the adapter
+sees it (`isSubmittedReview`). Terminality is what makes a record exist;
+attribution and head-pinning only decide whether an existing record counts.
+
+A 👍 reaction never gets that far: it carries no reviewed revision, so it cannot
+satisfy (2) in the first place, and Helm reads reactions from no provider. It is
+absent from the evidence set rather than dropped from it.
 
 Only evidence satisfying (1), (2) **and** (3) but failing **(4)** is ranked as
 **unavailable** — a verdict Helm holds but cannot read as a pass. A dismissed
