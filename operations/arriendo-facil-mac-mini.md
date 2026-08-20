@@ -39,14 +39,31 @@ issue. Funnel’s public `*.ts.net` DNS can briefly go NXDOMAIN even while
 `tailscale funnel status` looks fine inside the tailnet (known Tailscale
 behavior; public records can take up to ~10 minutes after enable/reset).
 
+**Pre-flight (do this before re-enabling Linear):**
+
+```bash
+# from MacBook or Mini — uses 8.8.8.8 / 1.1.1.1 (not Tailscale MagiDNS)
+cd ~/Git/Helm/helm-knowledge   # or clone path
+chmod +x operations/scripts/check-funnel-public.sh
+
+./operations/scripts/check-funnel-public.sh           # one-shot
+./operations/scripts/check-funnel-public.sh --watch 5 # dig+curl every 30s × 5m
+```
+
+Exit 0 only when public DNS returns Funnel relay IPs (not `100.x`), `/health`
+is 200, and unsigned `POST /api/webhooks/linear` returns **401** (handler
+reachable). Do **not** re-enable Linear until `--watch` completes with
+`fails=0`.
+
 When Linear emails “webhook was disabled”:
 
-1. From a non-tailnet resolver: `dig @8.8.8.8 +short mac-mini-de-luis.tailc0e5af.ts.net A`
-   (must return Funnel relay IPs, not empty/NXDOMAIN).
+1. Run `check-funnel-public.sh` (or manually:
+   `dig @8.8.8.8 +short mac-mini-de-luis.tailc0e5af.ts.net A` — must return
+   Funnel relay IPs, not empty/NXDOMAIN).
 2. `curl -sS -o /dev/null -w '%{http_code}\n' https://mac-mini-de-luis.tailc0e5af.ts.net/health`
 3. If DNS is empty: `tailscale funnel reset` then `tailscale funnel --bg 3001`
    (or toggle the `funnel` nodeAttr in the Tailscale ACL to force DNS republish).
-4. Re-enable the webhook in Linear → Webhook settings.
+4. Re-run `--watch 5`. Only then re-enable the webhook in Linear → Webhook settings.
 
 If NXDOMAIN keeps recurring for Linear while GitHub webhooks are fine, prefer a
 stable public hostname (Cloudflare Tunnel / custom domain) instead of relying on
