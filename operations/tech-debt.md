@@ -49,3 +49,64 @@ removing the two local copies.
 Three independent copies can drift. If one is loosened or fixed without the others,
 a path-traversal validation gap could open on whichever surface lags behind. The
 probability is low, but the failure mode is a security hole, so it is worth closing.
+
+---
+
+## TD-002 — External-review readiness race before pending intent persists
+
+- **Status:** Scheduled — [LEA-258](https://linear.app/lh-paul/issue/LEA-258/helm-race-webhook-readiness-vs-pending-external-review-intent)
+- **Date identified:** 2026-08-20
+- **Origin:** AF early-loop on Mac Mini (LEA-246 / knowledge#35); post-helm#105 retest
+- **Effort:** Medium
+- **Risk if ignored:** Medium (slow resume; poll still recovers)
+
+### Context
+
+When CodeRabbit (or another external provider) finishes analysis, GitHub may deliver
+the status/`external_review_ready` webhook **before** the review loop has written the
+pending external-review intent via `onExternalReviewDeferred`. The webhook path then
+logs `external review readiness ignored — no pending intent for revision` and no-ops.
+The in-loop poll still eventually sees the completed status and continues, so this is
+not a hard stopper after helm#105, but resume-on-webhook is flaky under fast providers.
+
+### Proposed fix
+
+Persist a provisional pending intent as soon as the loop enters the external-review
+wait (or before the first poll), keyed by product + externalId + targetRevision; the
+defer callback becomes an upsert. Alternatively, on readiness-without-intent, enqueue
+a short re-check / replay once the job records the defer. Add a regression test that
+fires readiness between "about to defer" and "intent written".
+
+### Why it matters
+
+AF on Mac Mini depends on Tailscale Funnel webhooks for a snappy review loop. Relying
+only on poll lengthens cycles and hides race bugs until a rate-limit or slow CR run
+masks them.
+
+---
+
+## TD-003 — Mac Mini Helm AF: durable `op` session + API launchd
+
+- **Status:** Scheduled — [LEA-259](https://linear.app/lh-paul/issue/LEA-259/helm-af-mini-durable-op-session-api-launchd)
+- **Date identified:** 2026-08-20
+- **Origin:** AF Helm bootstrap on Mini (`operations/arriendo-facil-mac-mini.md`)
+- **Effort:** Small–Medium
+- **Risk if ignored:** Medium (ops friction; reboot kills API)
+
+### Context
+
+1. `pnpm sync-env -- leasity-tenants` on the Mini needs an unlocked 1Password session;
+   today `.env` is often injected from the MacBook.
+2. Helm API for AF runs in tmux (`helm-af-api`); a reboot loses the process until
+   someone re-attaches.
+
+### Proposed fix
+
+- Service Account or always-on desktop unlock for `op` on `lhpaul_assistant`.
+- Optional `launchd` plist to start `apps/api` with `HELM_DATA_DIR` / product env after
+  login (document in the AF Mini runbook).
+
+### Why it matters
+
+Without this, every Mini reboot or env refresh is a manual MacBook→scp dance and
+Funnel points at a dead port until someone notices.

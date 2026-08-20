@@ -143,13 +143,25 @@ Dispatch (when ready to burn Codex cycles):
 curl -s -X POST http://127.0.0.1:3001/api/products/arriendo-facil/items/LEA-246/dispatch
 ```
 
+## Known Helm fixes (AF early-loop)
+
+- **helm#105** (2026-08-20): CodeRabbit Combined Status often has `creator: null`.
+  Older Helm treated that as `unavailable` → `external_repeated_skip` on LEA-246
+  before a pending intent could land. Fix: trust allowlisted context with missing
+  creator; synthetic `pending` when no status yet; rate-limited success → defer.
+
 ## Open debts
 
 1. ~~**Persistent public URL**~~ — done via Tailscale Funnel (helm#103 closed).
-2. **Linear webhook** — create in UI with admin (helm#104).
+2. ~~**Linear webhook**~~ — created (“Helm Mac Mini”); secret in 1Password.
 3. **Mini 1Password session** — Service Account or always-on desktop unlock so
    `pnpm sync-env -- leasity-tenants` works on the Mini without MacBook inject.
+   → **TD-003** / [LEA-259](https://linear.app/lh-paul/issue/LEA-259)
 4. **Optional:** `launchd` for Helm API so reboot survives without tmux attach.
+   → **TD-003** / [LEA-259](https://linear.app/lh-paul/issue/LEA-259)
+5. **Residual race:** status webhook can arrive before `onExternalReviewDeferred`
+   persists the intent (`no pending intent for revision`); poll path still works.
+   → **TD-002** / [LEA-258](https://linear.app/lh-paul/issue/LEA-258)
 
 ## Related
 
