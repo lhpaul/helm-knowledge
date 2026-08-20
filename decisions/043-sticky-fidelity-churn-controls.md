@@ -1,7 +1,7 @@
 # ADR-043: Sticky fidelity churn controls — bounded catalogue suppression, sticky themes, operator accept
 
 **Date:** 2026-08-20
-**Status:** Proposed
+**Status:** Accepted
 **Supersedes:** — (amends ADR-041 §4 "no gate suppression on code PRs"; amends
 ADR-038 §2 fingerprint composition)
 **Related:** ADR-025 (Remediation Covers All Reviewers), ADR-036 (PR Review
@@ -89,9 +89,11 @@ blockers at any severity on code PRs — is intentional: external findings arriv
 with adapter-assigned stable ids and structured fields, while internal findings
 are matched heuristically against free reviewer prose.
 
-An operator who wants a catalogued CRITICAL/HIGH cleared on a code PR uses
-§4 (accept finding), which is authenticated and audited, rather than a
-heuristic pattern match.
+A catalogued CRITICAL/HIGH on a code PR has no self-service clearing path, and
+that is deliberate. §4 cannot clear it — the accept ceiling is the same MEDIUM.
+It goes to the ADR-037 adjudication path, where the trade-off is recorded against
+a named conflict and a human option, rather than being carried by a heuristic
+pattern match or a one-line dismissal.
 
 ### 2. Sticky theme groups key the fingerprint alone
 
@@ -183,11 +185,20 @@ Semantics:
 
 ### 5. Test-reviewer contract: cite the AC, cap the fidelity ask
 
-The `test-reviewer` prompt requires that every finding either cite the
-acceptance criterion it maps to, or be filed at **LOW or INFO**. Asking for a
+The `test-reviewer` prompt requires every finding to name the acceptance
+criterion it maps to, or to say explicitly that it is not AC-derived.
+
+The **LOW ceiling applies to fidelity asks only**: a request for a
 higher-fidelity test artifact than the AC requires — a real-device run, an
-end-to-end harness, a framework runtime — is a suggestion, not a blocker, and is
-capped at LOW unless an AC names it.
+end-to-end harness, a framework runtime rendering the real app — is a
+suggestion, not a blocker, and is capped at LOW unless an AC names that
+artifact.
+
+The ceiling is deliberately not a general "no AC line, no severity" rule. A test
+finding can be correct and serious without mapping to an AC — a security hole in
+a fixture, an assertion that cannot fail, an order-dependent test that will go
+red in CI next week. Those keep their severity and say why they are not
+AC-derived. Only the "your tests are not real enough" class is capped.
 
 This is the cheapest of the five controls and the only one that prevents the
 finding from entering the gate at all. The other four bound the cost when it
@@ -202,10 +213,13 @@ does.
   collapses onto one sticky fingerprint (§2) so `no_progress` fires on schedule;
   the remediator is told not to re-rewrite the unit smoke (§3); and an operator
   who is watching can end it immediately (§4).
-- **`false-positives.md` gets more load-bearing, in a bounded band.** A wrong
-  entry can now clear a MEDIUM on a code PR without a human seeing it. The
-  severity cap is what keeps that from being a security problem; the entry-care
-  bar from ADR-041 §Consequences still applies.
+- **`false-positives.md` gets more load-bearing, in a bounded band.** A wrong or
+  stale entry can now clear a MEDIUM on a code PR without a human seeing it, and
+  a MEDIUM can be a real security finding — the cap bounds the blast radius, it
+  does not eliminate it. What it rules out is the failure ADR-041 §4 named: a
+  heuristic match silently clearing a CRITICAL or HIGH. The entry-care bar from
+  ADR-041 §Consequences is what covers the rest, and it is now doing more work
+  than it was.
 - **Sticky counts on test-fidelity findings become coarse.** Two genuinely
   distinct coverage gaps report as one sticky item. Accepted per §2.
 - **A new authenticated write path into the loop.** §4 adds a second marker a
