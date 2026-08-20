@@ -12,12 +12,12 @@ loop with CodeRabbit as `review.external.provider`.
 
 | Piece | Location |
 |---|---|
-| Helm monorepo | `~/Git/Helm/helm` (`develop` or fix branch) |
+| Helm monorepo | `~/Git/Helm/helm` (`develop`) |
 | Knowledge (primary product) | `~/Git/Leasity/leasity-tenants-knowledge` |
 | App repo | `~/Git/Leasity/leasity-tenants` |
 | `HELM_DATA_DIR` | `~/Git/Leasity/helm-data` |
 | API | `http://127.0.0.1:3001` in tmux `helm-af-api` |
-| Public tunnel | tmux `helm-af-tunnel` — **quick** `*.trycloudflare.com` (ephemeral) |
+| Public URL | **Tailscale Funnel** `https://mac-mini-de-luis.tailc0e5af.ts.net/` → `:3001` |
 | Env input | `apps/api/.env.leasity-tenants` (op:// refs + Mini paths) |
 | Resolved env | `apps/api/.env` (gitignored; currently injected from MacBook) |
 
@@ -27,14 +27,38 @@ Product config (knowledge `.helm/product.yaml`):
 - `review.early_loop.enabled: true`
 - Tracker: Linear team `LEA`
 
-## Start / stop
+## Public ingress (Tailscale Funnel)
+
+Stable HTTPS without a custom Cloudflare domain. Enabled once on the tailnet
+(admin link from `tailscale funnel` when first run).
 
 ```bash
 ssh mac-mini
-# API
+TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale
+
+# Start / re-assert (persists in Tailscale serve config)
+$TS funnel --bg 3001
+$TS funnel status
+
+# Disable
+$TS funnel --https=443 off
+```
+
+Smoke from anywhere:
+
+```bash
+curl -s https://mac-mini-de-luis.tailc0e5af.ts.net/api/products | jq '.[].product.slug'
+# → arriendo-facil
+```
+
+Do **not** use cloudflared quick tunnels for AF webhooks — the URL changes on
+restart (replaced 2026-08-20; see helm#103).
+
+## Start / stop (API)
+
+```bash
+ssh mac-mini
 tmux attach -t helm-af-api
-# Tunnel
-tmux attach -t helm-af-tunnel
 ```
 
 Restart API after pulling Helm or knowledge:
@@ -42,7 +66,7 @@ Restart API after pulling Helm or knowledge:
 ```bash
 tmux send-keys -t helm-af-api C-c
 # wait a second
-tmux send-keys -t helm-af-api 'bun run --watch src/index.ts' Enter
+tmux send-keys -t helm-af-api 'cd ~/Git/Helm/helm/apps/api && bun run --watch src/index.ts' Enter
 ```
 
 ## Secrets
@@ -73,21 +97,18 @@ rm /tmp/helm-af-mini.env
 
 Hooks on `lhpaul/leasity-tenants` and `lhpaul/leasity-tenants-knowledge`:
 
-- URL: `https://<tunnel>/api/webhooks/github`
+- URL: `https://mac-mini-de-luis.tailc0e5af.ts.net/api/webhooks/github`
 - Events: `pull_request`, `issue_comment`, `check_run`, `status`, `release`
 - Secret: `github-webhook-secret`
 
-**If the quick tunnel restarts, the URL changes** — update both hooks or GitHub
-deliveries fail. Prefer a named Cloudflare tunnel (see Open debts).
+Helm returns **200** for `ping` on Linear products (helm#102).
 
-Helm must return **200** for `ping` on Linear products (fix: `lhpaul/helm#102`).
-
-### Linear (pending — needs admin UI)
+### Linear (pending — needs admin UI) — helm#104
 
 API token lacks `admin` scope for `webhookCreate`. Create manually:
 
 1. Linear → Settings → Administration → API → Webhooks → New webhook.
-2. URL: `https://<current-tunnel>/api/webhooks/linear`
+2. URL: `https://mac-mini-de-luis.tailc0e5af.ts.net/api/webhooks/linear`
 3. Team: Leasity (`LEA`).
 4. Resource types: Issue, Comment.
 5. Signing secret: paste value from
@@ -122,16 +143,13 @@ Dispatch (when ready to burn Codex cycles):
 curl -s -X POST http://127.0.0.1:3001/api/products/arriendo-facil/items/LEA-246/dispatch
 ```
 
-## Open debts (pause AF product work until resolved)
+## Open debts
 
-1. **Persistent public URL** — replace trycloudflare quick tunnel with a named
-   Cloudflare tunnel (or equivalent) and point GitHub/Linear hooks at it.
-2. **Linear webhook** — create in UI with admin (token scope gap).
+1. ~~**Persistent public URL**~~ — done via Tailscale Funnel (helm#103 closed).
+2. **Linear webhook** — create in UI with admin (helm#104).
 3. **Mini 1Password session** — Service Account or always-on desktop unlock so
    `pnpm sync-env -- leasity-tenants` works on the Mini without MacBook inject.
-4. **Merge `lhpaul/helm#102`** — ping fix into `develop`; Mini currently runs the
-   fix branch.
-5. **Optional:** `launchd`/`brew services` for API + tunnel so reboot survives.
+4. **Optional:** `launchd` for Helm API so reboot survives without tmux attach.
 
 ## Related
 
