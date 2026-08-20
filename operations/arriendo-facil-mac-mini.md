@@ -32,6 +32,27 @@ Product config (knowledge `.helm/product.yaml`):
 Stable HTTPS without a custom Cloudflare domain. Enabled once on the tailnet
 (admin link from `tailscale funnel` when first run).
 
+**Important — Linear DNS:** Linear’s delivery log shows failures as
+`Could not resolve the webhook URL's host via DNS lookup` (HTTP status `-`).
+That means the request **never reached the Mini** — not a Helm secret/handler
+issue. Funnel’s public `*.ts.net` DNS can briefly go NXDOMAIN even while
+`tailscale funnel status` looks fine inside the tailnet (known Tailscale
+behavior; public records can take up to ~10 minutes after enable/reset).
+
+When Linear emails “webhook was disabled”:
+
+1. From a non-tailnet resolver: `dig @8.8.8.8 +short mac-mini-de-luis.tailc0e5af.ts.net A`
+   (must return Funnel relay IPs, not empty/NXDOMAIN).
+2. `curl -sS -o /dev/null -w '%{http_code}\n' https://mac-mini-de-luis.tailc0e5af.ts.net/health`
+3. If DNS is empty: `tailscale funnel reset` then `tailscale funnel --bg 3001`
+   (or toggle the `funnel` nodeAttr in the Tailscale ACL to force DNS republish).
+4. Re-enable the webhook in Linear → Webhook settings.
+
+If NXDOMAIN keeps recurring for Linear while GitHub webhooks are fine, prefer a
+stable public hostname (Cloudflare Tunnel / custom domain) instead of relying on
+Funnel DNS alone — GitHub often caches successful resolutions; Linear is less
+forgiving on NXDOMAIN bursts.
+
 ```bash
 ssh mac-mini
 TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale
