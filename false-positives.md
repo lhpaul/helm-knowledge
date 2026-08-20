@@ -22,6 +22,47 @@ Optional per-entry field:
 Comma-separated workflow stages (`code-review`, `spec-draft`, `plan-draft`, …).
 Omit it to apply the entry at every stage.
 
+## What an entry does at the code-review gate (ADR-043 §1)
+
+A matched entry demotes the finding to INFO **before** the remediation gate, so it
+stops driving remediation cycles — on code PRs for findings at **MEDIUM and
+below** only. A catalogued CRITICAL or HIGH on a code PR is never demoted by a
+pattern match; it is deferred in the unified plan instead (ADR-041 §3). On draft
+spec/plan PRs there is no cap.
+
+That cap is why an entry is load-bearing but not dangerous: a wrong entry can
+cost you a MEDIUM, never a security HIGH.
+
+## Accepting one finding on one item (ADR-043 §4)
+
+An entry here is **product-wide and permanent**. When you just want to dismiss a
+single finding on a single PR — the reviewer is not wrong in general, it is just
+not this item's job — comment on the impl PR instead:
+
+```markdown
+<!-- helm:accept-finding -->
+**Finding title:** Unit smoke does not exercise Expo Router navigation
+**Severity:** MEDIUM
+**Rationale:** AC #4 closed on the Vitest smoke; the Maestro flow is separate work.
+```
+
+- Requires **write access** on the code repo and an open `helm/impl/*` PR. An
+  unauthorized or malformed comment is ignored silently.
+- Only **MEDIUM and below**. A CRITICAL or HIGH — or an omitted `Severity:` —
+  is refused; those belong on the adjudication path, where the trade-off is
+  recorded against a named conflict.
+- Recording an accept re-runs the reviewer fan-out at the current head, so the
+  loop moves on immediately instead of waiting for the stop rule.
+- **The match is by finding fingerprint, not by exact text**, so an accept also
+  covers reworded restatements of the same ask. For a sticky theme like
+  test fidelity (`e2e-coverage` / `expo-router` / `maestro` / `unit-smoke`) that
+  means accepting one of them accepts **all test-fidelity findings on that item**.
+  That reach is the point — it is what ends the churn — but know it before you
+  post.
+
+Use an accept for one item; promote it to an entry below when the same pattern
+shows up on a third PR.
+
 ---
 
 ## Hardcoded test-fixture credentials (ephemeral testcontainers)
