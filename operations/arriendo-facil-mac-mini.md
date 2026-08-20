@@ -154,6 +154,8 @@ curl -s -X POST http://127.0.0.1:3001/api/products/arriendo-facil/items/LEA-246/
 
 1. ~~**Persistent public URL**~~ — done via Tailscale Funnel (helm#103 closed).
 2. ~~**Linear webhook**~~ — created (“Helm Mac Mini”); secret in 1Password.
+   If Linear emails “webhook was disabled”, re-enable in UI. After helm#106 the
+   handler ACKs within Linear’s 5s deadline (side effects run in background).
 3. **Mini 1Password session** — Service Account or always-on desktop unlock so
    `pnpm sync-env -- leasity-tenants` works on the Mini without MacBook inject.
    → **TD-003** / [LEA-259](https://linear.app/lh-paul/issue/LEA-259)
