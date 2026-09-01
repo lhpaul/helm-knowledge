@@ -35,22 +35,56 @@ Stable HTTPS without a custom Cloudflare domain. Enabled once on the tailnet
 **Important — Linear DNS:** Linear’s delivery log shows failures as
 `Could not resolve the webhook URL's host via DNS lookup` (HTTP status `-`).
 That means the request **never reached the Mini** — not a Helm secret/handler
-issue. Funnel’s public `*.ts.net` DNS can briefly go NXDOMAIN even while
-`tailscale funnel status` looks fine inside the tailnet (known Tailscale
-behavior; public records can take up to ~10 minutes after enable/reset).
+issue.
+
+**Measured on 2026-09-01 (LEA-260) — the NXDOMAIN is resolver-side.** Over 10
+sampling rounds in ~2.5 minutes against four public resolvers plus the
+authoritative NS for `ts.net`:
+
+| Resolver | NOERROR | NXDOMAIN |
+|---|---|---|
+| Authoritative (`ns*.dnsimple`) | **10** | 0 |
+| 9.9.9.9 (Quad9) | 10 | 0 |
+| 208.67.222.222 (OpenDNS) | 10 | 0 |
+| 8.8.8.8 (Google) | 9 | 1 |
+| 1.1.1.1 (Cloudflare) | 2 | **8** |
+
+The origin always has the record. Some public resolvers answer NXDOMAIN for it
+anyway, and cache that for the `ts.net` SOA minimum (**300 s**), which is how
+long each episode lasts. Two tempting explanations were ruled out with evidence:
+it is not an RFC 8020 NXDOMAIN cut (`tailc0e5af.ts.net` answers NOERROR/NODATA,
+so there is no parent NXDOMAIN to inherit) and not RFC 8198 aggressive NSEC
+caching (`ts.net` has no DS record — the zone is unsigned).
+
+**Therefore `tailscale funnel reset` cannot fix this case.** It republishes a
+record that is already correct at the origin. When the failure is resolver-side,
+there is no action on the Mini or on Funnel that helps — only waiting out the
+negative cache, or moving the ingress to a hostname we control.
 
 When Linear emails “webhook was disabled”:
 
-1. From a non-tailnet resolver: `dig @8.8.8.8 +short mac-mini-de-luis.tailc0e5af.ts.net A`
-   (must return Funnel relay IPs, not empty/NXDOMAIN).
+1. Run the watchdog once and read its verdict — it does this classification for
+   you: `funnel-watchdog && tail -1 ~/.local/state/dev-session/funnel-watchdog.jsonl`
+   - `verdict: resolver_miente` → origin is healthy, a public resolver is lying.
+     **Skip steps 2–3.** Nothing to repair locally; go to step 4.
+   - `verdict: origen_sin_record` → the record really is missing upstream. This
+     is the only case where step 3 applies.
+   - `status: ingress_down` with DNS resolving → the API is down, not DNS:
+     `helm-af-api status`.
 2. `curl -sS -o /dev/null -w '%{http_code}\n' https://mac-mini-de-luis.tailc0e5af.ts.net/health`
-3. If DNS is empty: `tailscale funnel reset` then `tailscale funnel --bg 3001`
-   (or toggle the `funnel` nodeAttr in the Tailscale ACL to force DNS republish).
+3. Only for `origen_sin_record`: `tailscale funnel reset` then
+   `tailscale funnel --bg 3001` (or toggle the `funnel` nodeAttr in the Tailscale
+   ACL to force DNS republish).
 4. Re-enable the webhook in Linear → Webhook settings.
 
-If NXDOMAIN keeps recurring for Linear while GitHub webhooks are fine, prefer a
-stable public hostname (Cloudflare Tunnel / custom domain) instead of relying on
-Funnel DNS alone — GitHub often caches successful resolutions; Linear is less
+`funnel-watchdog --report` has the accumulated history, including the breakdown
+by verdict. The recurrence condition below is already met as of 2026-09-01
+(15 of 59 runs with public DNS failing over 13 h) — the open question is only
+which replacement, tracked in
+[LEA-260](https://linear.app/lh-paul/issue/LEA-260).
+
+Given that, prefer a stable public hostname (Cloudflare Tunnel / custom domain)
+over Funnel DNS. GitHub often caches successful resolutions; Linear is less
 forgiving on NXDOMAIN bursts.
 
 ```bash
