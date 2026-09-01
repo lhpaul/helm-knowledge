@@ -87,8 +87,12 @@ race bugs until a rate-limit or slow CR run masks them.
 
 ## TD-003 — Mac Mini Helm AF: durable `op` session + API launchd
 
-- **Status:** Partially resolved — launchd done 2026-09-01; `op` session still open.
+- **Status:** Open, reduced scope — only the durable `op` session remains.
+  The launchd half shipped 2026-09-01 and
   [LEA-259](https://linear.app/lh-paul/issue/LEA-259/helm-af-mini-durable-op-session-api-launchd)
+  was **closed** with it (operator decision, 2026-09-01: close the ticket, keep the
+  `op` session as tracked debt). **This entry is now the only tracker** — there is no
+  open Linear issue for it.
 - **Date identified:** 2026-08-20
 - **Origin:** AF Helm bootstrap on Mini (`operations/arriendo-facil-mac-mini.md`)
 - **Effort:** Small–Medium
@@ -126,6 +130,18 @@ This no longer blocks unattended operation: `apps/api/.env` persists on disk acr
 reboot, so the API comes back on its own. What is still manual is *regenerating* that
 file (secret rotation, a new key), which falls back to the MacBook inject documented in
 the runbook.
+
+**Why it was deferred rather than fixed (2026-09-01).** The reboot failure mode — the
+one that actually cost ~49 minutes of ingress downtime — is closed by launchd. An `op`
+session only buys the ability to regenerate `.env` on the Mini alone, which happens
+rarely and involves the operator anyway. A service account is the clean fix and needs no
+code change, but it is unconfirmed whether an individual 1Password plan can issue one;
+that check is the first step whenever this is picked up. Storing the secrets in the
+Mini's Keychain was considered and rejected: it would duplicate secrets outside
+1Password, against the vault's stated policy.
+
+**What would reopen this:** secrets rotating often enough that the MacBook inject
+becomes a bottleneck, or a second machine needing the same env.
 
 ### Why it matters
 
