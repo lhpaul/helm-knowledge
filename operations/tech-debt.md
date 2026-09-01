@@ -87,24 +87,45 @@ masks them.
 
 ## TD-003 — Mac Mini Helm AF: durable `op` session + API launchd
 
-- **Status:** Scheduled — [LEA-259](https://linear.app/lh-paul/issue/LEA-259/helm-af-mini-durable-op-session-api-launchd)
+- **Status:** Partially resolved — launchd done 2026-09-01; `op` session still open.
+  [LEA-259](https://linear.app/lh-paul/issue/LEA-259/helm-af-mini-durable-op-session-api-launchd)
 - **Date identified:** 2026-08-20
 - **Origin:** AF Helm bootstrap on Mini (`operations/arriendo-facil-mac-mini.md`)
 - **Effort:** Small–Medium
-- **Risk if ignored:** Medium (ops friction; reboot kills API)
+- **Risk if ignored:** Low (was Medium; the reboot half is fixed)
 
 ### Context
 
 1. `pnpm sync-env -- leasity-tenants` on the Mini needs an unlocked 1Password session;
    today `.env` is often injected from the MacBook.
-2. Helm API for AF runs in tmux (`helm-af-api`); a reboot loses the process until
-   someone re-attaches.
+2. ~~Helm API for AF runs in tmux (`helm-af-api`); a reboot loses the process until
+   someone re-attaches.~~ Confirmed in production on 2026-09-01: the Mini rebooted at
+   05:52 and the API stayed down until 06:41 — ~49 minutes of 502 on the public
+   ingress, with Linear and GitHub webhooks pointed at it.
 
-### Proposed fix
+### Resolved — API under launchd (2026-09-01)
 
-- Service Account or always-on desktop unlock for `op` on `lhpaul_assistant`.
-- Optional `launchd` plist to start `apps/api` with `HELM_DATA_DIR` / product env after
-  login (document in the AF Mini runbook).
+`com.lh.helm.af-api`, a user LaunchAgent with `RunAtLoad` + `KeepAlive`, replaces the
+tmux session. Verified: `SIGKILL` on the process gets a new pid with `/health` 200 in
+under 8 s. The boot path is the same one the two watchdog LaunchAgents on this box
+already survive reboots with (both logged at 05:52:51, unattended).
+
+Source of truth is the Cerebro LH repo:
+`scripts/mac-mini/launchd/com.lh.helm.af-api.plist`, `scripts/mac-mini/helm-af-api`
+(control CLI), `scripts/mac-mini/install-helm-af-api.sh`.
+
+### Still open — durable `op` session
+
+After each reboot `op` reports `no active session found for account my`, and the
+1Password desktop app does not auto-unlock. Note that
+`apps/api/scripts/sync-env-from-1password.sh` calls `op inject`, which already honours
+`OP_SERVICE_ACCOUNT_TOKEN` — a service account would need **no code change**, only an
+account allowed to issue one.
+
+This no longer blocks unattended operation: `apps/api/.env` persists on disk across
+reboot, so the API comes back on its own. What is still manual is *regenerating* that
+file (secret rotation, a new key), which falls back to the MacBook inject documented in
+the runbook.
 
 ### Why it matters
 
