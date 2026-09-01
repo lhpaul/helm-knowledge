@@ -79,9 +79,9 @@ fires readiness between "about to defer" and "intent written".
 
 ### Why it matters
 
-AF on Mac Mini depends on Tailscale Funnel webhooks for a snappy review loop. Relying
-only on poll lengthens cycles and hides race bugs until a rate-limit or slow CR run
-masks them.
+AF on Mac Mini depends on **public webhooks** (`af-helm.lhpaul.cl` via Cloudflare
+Tunnel) for a snappy review loop. Relying only on poll lengthens cycles and hides
+race bugs until a rate-limit or slow CR run masks them.
 
 ---
 
@@ -130,4 +130,5 @@ the runbook.
 ### Why it matters
 
 Without this, every Mini reboot or env refresh is a manual MacBook→scp dance and
-Funnel points at a dead port until someone notices.
+the public ingress (`af-helm.lhpaul.cl`) points at a dead `:3001` until someone
+notices (tunnel up + API down → 502).

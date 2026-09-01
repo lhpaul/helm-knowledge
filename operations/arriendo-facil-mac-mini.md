@@ -17,7 +17,9 @@ loop with CodeRabbit as `review.external.provider`.
 | App repo | `~/Git/Leasity/leasity-tenants` |
 | `HELM_DATA_DIR` | `~/Git/Leasity/helm-data` |
 | API | `http://127.0.0.1:3001` via LaunchAgent `com.lh.helm.af-api` |
-| Public URL | **Tailscale Funnel** `https://mac-mini-de-luis.tailc0e5af.ts.net/` → `:3001` |
+| Public URL | **Cloudflare Tunnel** `https://af-helm.lhpaul.cl/` → `:3001` (LEA-260; Funnel retired 2026-09-01) |
+| Tunnel | LaunchAgent `com.lh.helm.af-tunnel` (`cloudflared` remote-managed) |
+| Ingress env | `~/.config/dev-session/helm-tunnel.env` (`HELM_*_HOSTNAME`) |
 | Env input | `apps/api/.env.leasity-tenants` (op:// refs + Mini paths) |
 | Resolved env | `apps/api/.env` (gitignored; currently injected from MacBook) |
 
@@ -27,53 +29,60 @@ Product config (knowledge `.helm/product.yaml`):
 - `review.early_loop.enabled: true`
 - Tracker: Linear team `LEA`
 
-## Public ingress (Tailscale Funnel)
+## Public ingress (Cloudflare Tunnel) — LEA-260
 
-Stable HTTPS without a custom Cloudflare domain. Enabled once on the tailnet
-(admin link from `tailscale funnel` when first run).
+Canonical public hostname (2026-09-01): **`https://af-helm.lhpaul.cl`** →
+`http://127.0.0.1:3001` via a **remote-managed** Cloudflare Tunnel
+(`helm-af-mini`). Hostname choice: leave `helm.lhpaul.cl` free for a future
+product surface; this name is dogfood/infra for Arriendo Fácil on the Mini.
 
-**Important — Linear DNS:** Linear’s delivery log shows failures as
-`Could not resolve the webhook URL's host via DNS lookup` (HTTP status `-`).
-That means the request **never reached the Mini** — not a Helm secret/handler
-issue. Funnel’s public `*.ts.net` DNS can briefly go NXDOMAIN even while
-`tailscale funnel status` looks fine inside the tailnet (known Tailscale
-behavior; public records can take up to ~10 minutes after enable/reset).
+Tailscale Funnel (`mac-mini-de-luis.tailc0e5af.ts.net`) was the previous ingress
+(helm#103). It is **off** (no `serve`/`funnel` config). Do not re-enable it for
+webhooks — public `*.ts.net` DNS flaked NXDOMAIN for Linear while the
+authoritative record stayed healthy (resolver-side; see LEA-260 / knowledge
+diagnosis). GitHub was more tolerant; Linear auto-disabled on bursts.
 
-When Linear emails “webhook was disabled”:
+### Pieces on the Mini
 
-1. From a non-tailnet resolver: `dig @8.8.8.8 +short mac-mini-de-luis.tailc0e5af.ts.net A`
-   (must return Funnel relay IPs, not empty/NXDOMAIN).
-2. `curl -sS -o /dev/null -w '%{http_code}\n' https://mac-mini-de-luis.tailc0e5af.ts.net/health`
-3. If DNS is empty: `tailscale funnel reset` then `tailscale funnel --bg 3001`
-   (or toggle the `funnel` nodeAttr in the Tailscale ACL to force DNS republish).
-4. Re-enable the webhook in Linear → Webhook settings.
+| Piece | Path / command |
+|---|---|
+| Token | `~/.config/dev-session/helm-tunnel.token` (chmod 600) — from Cloudflare Zero Trust → Tunnels → `helm-af-mini`; also in `op://Helm/helm/cloudflared-tunnel-token` |
+| Env | `~/.config/dev-session/helm-tunnel.env` — `HELM_TUNNEL_HOSTNAME` and `HELM_INGRESS_HOSTNAME` (both `af-helm.lhpaul.cl` after cutover) |
+| LaunchAgent | `com.lh.helm.af-tunnel` (`cloudflared tunnel run --token-file …`; no autoupdate) |
+| Control CLI | `helm-af-tunnel status` / `logs` |
+| Installer | Cerebro LH `scripts/mac-mini/install-helm-af-tunnel.sh` |
+| Watchdog | `com.lh.dev-session.funnel-watchdog` (name is legacy) — monitors **`HELM_INGRESS_HOSTNAME`**, not Funnel |
 
-If NXDOMAIN keeps recurring for Linear while GitHub webhooks are fine, prefer a
-stable public hostname (Cloudflare Tunnel / custom domain) instead of relying on
-Funnel DNS alone — GitHub often caches successful resolutions; Linear is less
-forgiving on NXDOMAIN bursts.
+### Install / recover tunnel
 
 ```bash
 ssh mac-mini
-TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale
-
-# Start / re-assert (persists in Tailscale serve config)
-$TS funnel --bg 3001
-$TS funnel status
-
-# Disable
-$TS funnel --https=443 off
+# Token already on disk (or push from MacBook via op → file)
+zsh ~/Git/Cerebro/LH/scripts/mac-mini/install-helm-af-tunnel.sh
+helm-af-tunnel status
+# Expect: Registered tunnel connection + public health 200
 ```
 
-Smoke from anywhere:
+Cloudflare dashboard: Zero Trust → Networks → Tunnels → `helm-af-mini` →
+Public Hostname `af-helm.lhpaul.cl` → HTTP → `http://127.0.0.1:3001`.
+
+Do **not** run `sudo cloudflared service install …` on the Mini — that fights
+our LaunchAgent. Do **not** use cloudflared **quick** tunnels (URL changes on
+restart; replaced once by Funnel in helm#103, then by this named tunnel).
+
+### Smoke from anywhere
 
 ```bash
-curl -s https://mac-mini-de-luis.tailc0e5af.ts.net/api/products | jq '.[].product.slug'
+curl -sf https://af-helm.lhpaul.cl/health
+curl -s https://af-helm.lhpaul.cl/api/products | jq '.[].product.slug'
 # → arriendo-facil
 ```
 
-Do **not** use cloudflared quick tunnels for AF webhooks — the URL changes on
-restart (replaced 2026-08-20; see helm#103).
+When Linear emails “webhook was disabled”:
+
+1. `curl -sf https://af-helm.lhpaul.cl/health` and `helm-af-api status` / `helm-af-tunnel status`
+2. Confirm tunnel Healthy in Cloudflare and LaunchAgent loaded
+3. Re-enable the webhook in Linear → Webhook settings (URL must stay `…/api/webhooks/linear`)
 
 ## Start / stop (API) — launchd (LEA-259)
 
@@ -129,7 +138,10 @@ regenerating it still needs an `op` session — the open half of TD-003.
 - `github-webhook-secret` — GitHub → Helm
 - `linear-webhook-secret` — Linear → Helm (**created 2026-08-20**)
 
-Helm GitHub PAT: `op://Helm/helm/github-token`.
+Helm platform item `op://Helm/helm`:
+
+- `github-token` — Helm GitHub PAT
+- `cloudflared-tunnel-token` — Cloudflare Tunnel `helm-af-mini` (LEA-260; also on Mini as `helm-tunnel.token`)
 
 Mini `op` CLI is often **not signed in** over SSH. Until a Service Account or
 desktop unlock is available, resolve on the MacBook and `scp` `.env`:
@@ -145,29 +157,32 @@ rm /tmp/helm-af-mini.env
 
 ## Webhooks
 
+Base URL: `https://af-helm.lhpaul.cl`
+
 ### GitHub (done)
 
 Hooks on `lhpaul/leasity-tenants` and `lhpaul/leasity-tenants-knowledge`:
 
-- URL: `https://mac-mini-de-luis.tailc0e5af.ts.net/api/webhooks/github`
+- URL: `https://af-helm.lhpaul.cl/api/webhooks/github`
 - Events: `pull_request`, `issue_comment`, `check_run`, `status`, `release`
 - Secret: `github-webhook-secret`
 
-Helm returns **200** for `ping` on Linear products (helm#102).
+Helm returns **200** for `ping` on Linear products (helm#102). Cutover from Funnel
+verified 2026-09-01 (ping deliveries 200).
 
-### Linear (pending — needs admin UI) — helm#104
+### Linear (done) — helm#104 / LEA-260
 
-API token lacks `admin` scope for `webhookCreate`. Create manually:
+Webhook **Helm Mac Mini** in Linear UI (API token lacks `admin` for
+`webhookCreate`):
 
-1. Linear → Settings → Administration → API → Webhooks → New webhook.
-2. URL: `https://mac-mini-de-luis.tailc0e5af.ts.net/api/webhooks/linear`
-3. Team: Leasity (`LEA`).
-4. Resource types: Issue, Comment.
-5. Signing secret: paste value from
-   `op read 'op://Leasity/leasity-tenants/linear-webhook-secret'`.
+1. Settings → Administration → API → Webhooks
+2. URL: `https://af-helm.lhpaul.cl/api/webhooks/linear`
+3. Team: Leasity (`LEA`)
+4. Resource types: Issue, Comment
+5. Signing secret: `op://Leasity/leasity-tenants/linear-webhook-secret`
 
-Until this exists, ingest items with `POST /api/items` and advance stages
-manually / via GitHub PR webhooks only.
+Linear’s UI may not offer “Send test”; smoke with a signed POST (HMAC-SHA256 in
+`Linear-Signature`) expecting 401 without/wrong sig and 200 with the secret.
 
 ## Smoke checks
 
@@ -204,10 +219,11 @@ curl -s -X POST http://127.0.0.1:3001/api/products/arriendo-facil/items/LEA-246/
 
 ## Open debts
 
-1. ~~**Persistent public URL**~~ — done via Tailscale Funnel (helm#103 closed).
-2. ~~**Linear webhook**~~ — created (“Helm Mac Mini”); secret in 1Password.
-   If Linear emails “webhook was disabled”, re-enable in UI. After helm#106 the
-   handler ACKs within Linear’s 5s deadline (side effects run in background).
+1. ~~**Persistent public URL**~~ — Funnel (helm#103) → **Cloudflare Tunnel**
+   `af-helm.lhpaul.cl` (LEA-260, 2026-09-01); Funnel disabled.
+2. ~~**Linear webhook**~~ — “Helm Mac Mini”; URL on `af-helm`; secret in 1Password.
+   After helm#106 the handler ACKs within Linear’s 5s deadline (side effects in
+   background).
 3. **Mini 1Password session** — Service Account or always-on desktop unlock so
    `pnpm sync-env -- leasity-tenants` works on the Mini without MacBook inject.
    `op` on the Mini reports `no active session found for account my` after every
