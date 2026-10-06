@@ -153,7 +153,7 @@ Helm reads this on dispatch; restart the Helm API after the
 
 ```bash
 lsof -i :3001 | awk 'NR>1 {print $2}' | xargs kill -9
-cd ~/Git/Helm/helm
+cd <helm checkout>
 pnpm sync-env -- leasity-tenants   # or: -- helm  (resolve 1Password → apps/api/.env)
 pnpm dev 2>&1 \
   | tee logs/helm-api-$(date +%Y%m%d-%H%M).log &

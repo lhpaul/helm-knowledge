@@ -122,7 +122,7 @@ en el roadmap, después de cerrar el bloque I (iteración y readiness).
 
 ## Related artifacts
 
-- Living reconciled roadmap (private agent-comms `ROADMAP.md`, not in this repo)
+- Historical private roadmap (retired 2026-10-06; not in this repo)
   — section "Gaps identified during the Arriendo Fácil pilot".
   In-repo strategy snapshot: [`strategy.md`](../strategy.md).
 - `decisions/005-agent-runtime-interface.md` — ADR original del runtime, base
