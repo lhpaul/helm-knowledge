@@ -144,11 +144,11 @@ For the **coder** receiving a Helm session brief:
   brief.
 - helm#41 — the hardening PR (`-C <workdir>`, stdin prompt, mapping
   preserved).
-- `~/Documents/Empresa/Proyectos/Helm/prompts/helm-session-driver.md` —
+- Private historical session-driver prompt (retired; no longer on disk) —
   the intake protocol that caught the error (sections "Session intake
   protocol" and "How to receive your first task").
-- `~/Documents/Empresa/Proyectos/Helm/prompts/sesion-codex-cli-0136-runtime-update.md` —
-  the brief whose premise was stale (kept as historical reference).
+- Private historical Codex CLI 0.136 runtime-update session brief
+  (retired; no longer on disk) — the brief whose premise was stale.
 - `learnings/2026-06-02-af-pilot-lea-104-arc.md` and
   `learnings/2026-06-02-af-pilot-lea-105-stack-validation.md` — the
   pilot evidence points EP#1–EP#2 this one complements.
