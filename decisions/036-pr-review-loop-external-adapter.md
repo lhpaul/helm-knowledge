@@ -73,7 +73,7 @@ Config in `.helm/product.yaml` (scalar, not a list):
 ```yaml
 review:
   external:
-    provider: haystack   # haystack | coderabbit | … — one value only
+    provider: haystack # haystack | coderabbit | … — one value only
     haystack:
       major_is_blocking: false
       poll_interval_sec: 15
@@ -99,10 +99,10 @@ All providers map to a shared shape before the loop or remediator sees them:
 
 ```typescript
 type NormalizedFinding = {
-  id: string;           // stable ledger key: provider-native id when available,
-                        // else canonical signature (provider, path, category, line)
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  blocking: boolean;    // adapter decision — not raw bot category alone
+  id: string; // stable ledger key: provider-native id when available,
+  // else canonical signature (provider, path, category, line)
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  blocking: boolean; // adapter decision — not raw bot category alone
   path?: string;
   summary: string;
   detail?: string;
@@ -180,7 +180,7 @@ of them is the one subsequent escalations update.
 Because the comment is rewritten in place, it must be self-contained — it
 carries the current reason, the cycles completed in this dispatch, the lifetime
 lane counters when the caller knows them (ADR-042), and the external signal.
-The escalation *history* is not kept on the PR: it lives in the item's history
+The escalation _history_ is not kept on the PR: it lives in the item's history
 events, which are idempotent per `(lane, reason, cyclesTotal)` (ADR-042 §5), so
 the PR shows the latest state and the item shows how it got there.
 
@@ -333,7 +333,7 @@ item, PR number, and exact target revision before a resume is enqueued.
 **Not changed — historical provenance:** ADRs, learnings, specs, plans, and the
 `**Example:**` / `**Origin:**` fields of `false-positives.md` keep their Haystack
 attributions; they are an accurate record of where a finding came from. What did
-change in `false-positives.md` is the *active* `**Pattern:**` / `**Action:**`
+change in `false-positives.md` is the _active_ `**Pattern:**` / `**Action:**`
 text, which is now provider-neutral — that text is matched against live findings
 by the review loop, so naming a retired provider there would only narrow matching
 against CodeRabbit and Bugbot output. Provenance moved into `**Origin:**` rather
@@ -345,11 +345,11 @@ than being dropped.
 
 **`codex-github` is added as a third external review provider.** The adapter
 contract in the body of this ADR is unchanged; what this addendum records is a
-provider whose *readiness signal* is a shape the earlier two did not have.
+provider whose _readiness signal_ is a shape the earlier two did not have.
 
 > **Status correction (same day):** `codex-github` was briefly made the dogfood
 > default and was **rolled back to `coderabbit`** before this addendum shipped —
-> see *Not the default: no terminal signal on a clean run* below. It stays fully
+> see _Not the default: no terminal signal on a clean run_ below. It stays fully
 > implemented and supported as an opt-in selection.
 
 **Why it was tried:** CodeRabbit rate-limited every review invocation on the open
@@ -409,7 +409,7 @@ when no inline finding survives; a `DISMISSED` review is `skipped`, never read
 as a clean bill.
 
 **Operator prerequisite (not a code contract).** Codex reviews are not automatic
-by default — the repo needs *Automatic reviews* enabled in Codex's GitHub
+by default — the repo needs _Automatic reviews_ enabled in Codex's GitHub
 settings, or an `@codex review` comment on the PR. Helm does **not** request the
 review itself: `ExternalReviewAdapter` is a read-only contract, and having a
 poller post comments would both widen it and risk comment spam on every deferred
@@ -454,7 +454,7 @@ A provider may return `clean` only on evidence that is **all four** of:
 
 **One outcome per failure mode.** Evidence failing (1) or (2) — the wrong author,
 or a revision that is not the one under review — is **not evidence**. It is
-dropped before ranking: it produces no verdict of its own, clean *or* blocking,
+dropped before ranking: it produces no verdict of its own, clean _or_ blocking,
 so a stale blocker can never override current-head evidence and a stale summary
 can never clear the current head. Dropping it is not itself a verdict either:
 when nothing else has landed, the absence leaves the loop deferred, and a lane
@@ -484,7 +484,7 @@ This is what "stale reviews and stale summaries are unavailable" in §4 means:
 stale input cannot produce a clean verdict. It does not mean a stale review is
 ranked as an unavailability record — it is dropped, per the rule above. §3's
 "blocking wins regardless of age" is likewise scoped to head-pinned evidence
-only: age there means *the timestamp of two competing current-head records*, not
+only: age there means _the timestamp of two competing current-head records_, not
 a licence for a previous revision's finding to outrank this one's.
 
 ### 2. Root PR comments are the second evidence channel
@@ -497,8 +497,8 @@ each one as: SHA-pinned **terminal** evidence, a **usage-limit** notice, a
 
 Unavailability wording is only read outside quoted spans, and a multi-backtick or
 3+-tilde run in the body suppresses the **unavailability** classification
-specifically — the terminal verdicts still resolve normally. A Codex review *of
-the classifier itself* quotes the phrases it matches on; without the guard, a
+specifically — the terminal verdicts still resolve normally. A Codex review _of
+the classifier itself_ quotes the phrases it matches on; without the guard, a
 clean review of this code reads back as `unavailable`.
 
 The `Reviewed commit:` marker gets the mirror-image treatment: it is read from
@@ -536,7 +536,7 @@ has the resulting fresh review supersede the recorded error, and a clean summary
 published after the quota resets supersedes the quota notice. A later bare
 acknowledgement — which carries no information — supersedes neither.
 
-The framework's rule that a usage limit *terminates the invocation immediately*
+The framework's rule that a usage limit _terminates the invocation immediately_
 is scoped to one poll window, where a fresh review arriving seconds later is
 implausible. Helm has no such window: each adapter call reads a fresh snapshot,
 and the quota comment stays on the PR forever. Ranking it as a sticky flag
@@ -588,7 +588,7 @@ Marker prefix matching is a deliberate, bounded relaxation, not an oversight:
 Codex abbreviates the SHA it prints, so requiring 40 hex would disable the clean
 signal outright. The comparison is against the **known** target revision, not a
 lookup of an arbitrary prefix, and git keeps abbreviations unique within a repo
-by construction — so a false match needs Codex to have reviewed a *different*
+by construction — so a false match needs Codex to have reviewed a _different_
 commit whose abbreviation prefixes the target.
 
 Tightening it — a longer minimum, or requiring the prefix to resolve uniquely
@@ -608,6 +608,59 @@ signal to be **dogfooded on a real PR with validation evidence captured** before
 the switch, and that has not happened yet. Promotion is a separate, explicitly
 approved change — the 2026-08-14 rollback is the precedent for why it is not
 bundled with the implementation.
+
+---
+
+## Addendum — Local AI reviewer provider (2026-10-19, Helm #108)
+
+LH approved replacing the dogfood external slot with ADF's local AI reviewer.
+This supersedes the active Codex GitHub trial configured for #100; the PR will
+propose closing #100 as replaced, without closing it automatically.
+
+Helm already invokes the external adapter **after** internal fanout/remediation
+passes its gate. That order does not control GitHub App billing: CodeRabbit's
+auto-review still analyzed intermediate pushes. Helm disables
+`reviews.auto_review.enabled` in `.coderabbit.yaml` and selects
+`review.external.provider: local-ai-reviewer`. Omitting the provider remains
+the internals-only option; no new enabled flag or loop reordering is needed.
+
+The strict `local_ai_reviewer` config accepts `command` (default
+`local-ai-reviewer.sh`), `backend` (`codex` default, or `http`), `timeout_sec`
+(positive integer, default 900, maximum 3600), and `mode` (`ordinary` default,
+or `strict`). Codex uses the existing CLI login without new secrets. HTTP
+requires operator-managed ADF environment configuration, never YAML credentials.
+
+Helm references the installed ADF companion and dependencies instead of
+vendoring them. Install its scripts directory on PATH. The trusted command
+receives positional PR number/owner/repo and `--timeout N --repo-root .`;
+backend/mode and a fresh private evidence path are exported in the environment.
+Server operators must provide a wrapper selecting/changing into the appropriate
+checkout if the runner is not already there. The companion validates checkout
+origin and HEAD. No machine-local paths are committed in public configuration.
+
+The adapter bounds runtime with AbortController and subprocess-group termination,
+bounds stdout, reads a new per-invocation evidence artifact and cleans temporary
+files. It parses `RESULT`, `BLOCKING_COUNT`, `BLOCKING_<n>_BODY/PATH`, and
+`REVIEWED_HEAD`. A terminal result requires stdout and the artifact to agree on
+result, count and the **full exact** target revision; the artifact also validates
+PR identity and schema version. Clean needs exit 0 and zero blockers;
+needs_fixes needs exit 0/1 and nonempty blocker bodies. Blockers are normalized
+to high severity with stable content-derived IDs. Optional strict diagnostics
+remain advisory and cannot override the ordinary verdict.
+
+Timeout, command failure, missing/stale/malformed evidence and nonterminal
+results map to `skipped:unavailable`, never clean or deferred. Existing repeated
+skip budgets and escalation remain intact. The provider is local and posts no
+GitHub comments; it needs no readiness webhook or trusted bot identity.
+
+Rollback remains a config change to `codex-github` or `coderabbit`; both provider
+blocks/adapters stay available. Codex GitHub needs its existing trusted terminal
+head evidence and review trigger. CodeRabbit additionally needs auto-review
+re-enabled when automatic App analysis is wanted. Neither PR deploys the change
+to AF or merges automatically; #115 is still a separate pending change.
+
+Spec and plan: `specs/issue_108.md`, `plans/issue_108.md`. Runtime setup and
+contributor commands: Helm `docs/local-ai-reviewer.md` and `AGENT.md`.
 
 ---
 

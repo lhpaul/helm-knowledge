@@ -1,4 +1,4 @@
-helm_version: '0'
+helm_version: "0"
 product:
   slug: helm
   name: Helm
@@ -36,41 +36,25 @@ workflow:
 
 review:
   external:
-    # `codex-github` is the active reviewer, in an **open dogfood trial**
-    # (lhpaul/helm#100) — not yet promoted to the standing default. Haystack was
-    # retired end-to-end by lhpaul/helm#85 (ADR-036 addendum) — the product
-    # schema now rejects `provider: haystack` and any `review.external.haystack`
-    # block.
-    #
-    # `codex-github` was briefly the default (2026-08-14) and was rolled back
-    # the same day: Codex had no terminal signal for a *clean* run, so a clean
-    # PR stayed deferred until its intent expired.
-    #
-    # lhpaul/helm#96 (2026-08-18) implemented that signal — head-pinned review
-    # or `Reviewed commit` summary evidence. Nothing else reads as clean: a
-    # rate-limited or environment-missing response ranks as unavailable, a
-    # stale or draft review is dropped, and a reaction-only response never
-    # enters the evidence set at all, since Helm reads no reactions
-    # (ADR-036, 2026-08-18 addendum §4).
-    #
-    # 2026-08-18: switched to `codex-github` to run the scoped trial ADR-036 §7
-    # requires — one real PR reviewed end-to-end under the new contract, with
-    # validation evidence captured on lhpaul/helm#100 (including the
-    # abbreviated-marker-SHA width Codex emits in practice, ADR-036 §6). This
-    # switch is the trial, on its own change; **promotion** to the standing
-    # default remains a separate, explicitly approved decision recorded on #100,
-    # and ADR-036 §7 is not amended until that decision lands. The
-    # 2026-08-14 rollback is the precedent for keeping the two apart. If the
-    # trial fails, revert this file to `provider: coderabbit` — its config stays
-    # below as the rollback target, as Bugbot's does.
-    provider: codex-github
+    # #108: LH approved local ADF review after internal gates (2026-10-19).
+    # Install the ADF companion on PATH; server runners need an operator wrapper
+    # selecting the correct checkout at the exact PR head. No paths/secrets here.
+    # Rollback: select codex-github (manual trigger/trusted head evidence), or
+    # coderabbit and re-enable reviews.auto_review.enabled in .coderabbit.yaml.
+    # #100's Codex GitHub trial is superseded; closure is proposed, not automatic.
+    provider: local-ai-reviewer
+    local_ai_reviewer:
+      command: local-ai-reviewer.sh
+      backend: codex
+      timeout_sec: 900
+      mode: ordinary
     defer_when_pending: true
     resume_on_check_run: true
     codex_github:
       # Exact review-author logins. The `[bot]` account is the app; the
       # un-suffixed login is left out on purpose (a human could register it).
       trusted_identities:
-        - 'chatgpt-codex-connector[bot]'
+        - "chatgpt-codex-connector[bot]"
       # Only used to name an in-flight analysis in the deferral reason.
       check_names:
         - Codex
@@ -90,9 +74,9 @@ review:
       status_contexts:
         - CodeRabbit
       trusted_identities:
-        - 'coderabbitai[bot]'
+        - "coderabbitai[bot]"
         - coderabbitai
-        - 'coderabbitai-pro[bot]'
+        - "coderabbitai-pro[bot]"
   loop:
     max_cycles: 5
     adjudication:
