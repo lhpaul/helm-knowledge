@@ -28,6 +28,14 @@ helm-knowledge/
 `-- ux-options/                  # reserved for UX Lab artifacts
 ```
 
+## CI checks
+
+Pull requests against `main` run `Knowledge CI` (`.github/workflows/knowledge-ci.yml`):
+markdown lint (`.markdownlint-cli2.jsonc`) and `scripts/check-knowledge.sh`, which
+verifies required files, the `REVIEW.md` contract, and the naming and basic
+structure of changed specs and plans. Run it locally with
+`npx markdownlint-cli2 "**/*.md" && scripts/check-knowledge.sh origin/main`.
+
 ## How agents use this repo
 
 - Spec Writer reads `strategy.md`, relevant `discovery/` artifacts, `wiki/`,
