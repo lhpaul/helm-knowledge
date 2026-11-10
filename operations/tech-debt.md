@@ -19,7 +19,10 @@ deleting it.
 
 ## TD-001 — Consolidate the `externalId` regex in `@helm/shared`
 
-- **Status:** Open
+- **Status:** Resolved (2026-11-10) — issue
+  [lhpaul/helm#129](https://github.com/lhpaul/helm/issues/129), fixed in
+  [helm#133](https://github.com/lhpaul/helm/pull/133) (code, `develop`) and
+  [helm-knowledge#96](https://github.com/lhpaul/helm-knowledge/pull/96) (spec and plan)
 - **Date identified:** 2026-05-25
 - **Origin:** Session 13 (helm PR #20), Cowork review
 - **Effort:** Small
