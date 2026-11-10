@@ -52,10 +52,8 @@ if [ -n "$BASE_REF" ]; then
       case "$f" in
         specs/README.md | plans/README.md) continue ;;
       esac
-      case "$f" in
-        specs/issue_[0-9]*.md | plans/issue_[0-9]*.md) ;;
-        *) fail "$f: spec/plan files must be named issue_<number>.md" ;;
-      esac
+      [[ "$f" =~ ^(specs|plans)/issue_[0-9]+\.md$ ]] ||
+        fail "$f: spec/plan files must be named issue_<number>.md"
       if [ ! -s "$f" ]; then
         fail "$f: file is empty"
         continue
