@@ -86,7 +86,9 @@ the relative path `../helm-playground-knowledge` won't resolve. Teams with non-s
 must use absolute paths in `products.yaml` (those paths won't be portable between machines).
 Future fix: support git URLs with clone-on-demand (v2+).
 
-**externalId collision (Known Limitation):** The Item Store uses `data/items/{externalId}.json`
+**externalId collision (Resolved in #126):** _Historical description of the original limitation; item files are now namespaced as `data/items/{productSlug}/{externalId}.json` and legacy flat files are migrated automatically._
+
+**externalId collision (original limitation):** The Item Store uses `data/items/{externalId}.json`
 (flat, no product namespace). Because each GitHub Project has its own independent issue number
 sequence, two Products will routinely have items with the same `externalId` (e.g., both will
 have `issue_1`, `issue_2`, etc.). The second write to `data/items/issue_1.json` silently
@@ -103,5 +105,5 @@ migration script will rename existing files. The `ItemStore` constructor will ac
 
 - [ ] Support optional `stage_labels` in `product.yaml` for per-product display names
       (e.g., `discovery` displays as "Backlog" in the UI). Internal stages remain canonical.
-- [ ] Namespace item storage by productSlug to eliminate externalId collision risk.
+- [x] Namespace item storage by productSlug (#126) to eliminate externalId collision risk.
 - [ ] Support git URLs in `products.yaml` with local cache/clone-on-demand.
