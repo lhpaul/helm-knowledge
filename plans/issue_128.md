@@ -6,7 +6,7 @@ Add an idempotent `scripts/ensure-review-labels.sh` to the Helm repo, document t
 ## Implementation Steps
 1. Add `scripts/ensure-review-labels.sh`: required-label table, `gh label list` check, `gh label create` only for missing ones, `--repo` and `--dry-run` flags, non-zero exit on any `gh` failure.
 2. Add `apps/api/src/scripts/ensure-review-labels.test.ts` running the script with a fake `gh` on PATH.
-3. Add `docs/review-labels.md` listing the required labels and how to run the script; link it from `docs/local-ai-reviewer.md`.
+3. Add `docs/review-labels.md` listing the required labels, how to run the script, and stating it is the preflight step before applying the gate label (no in-repo code applies the label today, so there is no caller to wire); link it from `docs/local-ai-reviewer.md`.
 4. Add a CHANGELOG `[Unreleased]` entry.
 
 ## Files to Touch

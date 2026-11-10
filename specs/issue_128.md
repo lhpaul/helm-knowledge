@@ -8,7 +8,7 @@ The review loop's human merge gate depends on the GitHub label `ready-for-human-
 - The script is idempotent: running it twice changes nothing the second time.
 - The script never edits, renames, recolors or deletes an existing label, and never touches branch protection or other repository settings.
 - The required labels (name, color, description) are defined in one place and documented in the Helm repo docs.
-- The flow that applies the gate runs the script first, so no one has to create the label by hand.
+- The docs name the script as the required preflight step for whoever applies the gate label (operator or runner), so no one has to create the label by hand. Today no Helm code applies the label (it is applied by the operator/runner after a clean reviewer loop), so there is no in-repo caller to wire; automating the application itself is out of scope.
 - Which label enables the merge does not change.
 - Unit tests cover create-when-missing, no-op-when-present and failure propagation using a fake `gh`, with no network.
 
