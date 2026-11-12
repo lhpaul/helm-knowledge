@@ -25,9 +25,9 @@ One window is still open. The provider starts its analysis when a commit is push
 - Marking TD-002 Resolved.
 
 ## Technical Notes
-- The readiness note is a new, additive file: `data/external-review-readiness/<productSlug>/<provider>.<targetRevision>.json` with `productSlug`, `provider`, `targetRevision`, optional `prNumber`, `owner`, `repo`, `headRef`, `receivedAt`, `expiresAt`. It lives outside `review-dispatch-outbox/`, so the existing outbox format, readers and expiry sweep do not change. No migration; old data roots simply have no notes.
+- The readiness note is a new, additive file: `data/external-review-readiness/<productSlug>/<provider>.<targetRevision>.json` with `productSlug`, `provider`, `targetRevision`, `owner`, `repo`, optional `prNumber` and `headRef`, `receivedAt`, `expiresAt`. It lives outside `review-dispatch-outbox/`, so the existing outbox format, readers and expiry sweep do not change. No migration; old data roots simply have no notes.
 - Note lifetime is `review.external.max_defer_sec` (default 30 minutes), the same bound as a pending intent. Expired notes are ignored and swept on the dispatch hot path.
-- Consumption validates the note against the intent: same product, provider and revision; PR number when the note has one; repository (code repo for `reviewer-fanout`, knowledge repo for draft reviewers) when the note has one; head ref artifact identity when the note has one. A mismatch leaves the note alone.
+- Consumption validates the note against the intent: same product, provider and revision; repository always (code repo for `reviewer-fanout`, knowledge repo for draft reviewers; readiness without repository identity is not recorded, matching the direct webhook path); PR number and head ref artifact identity when the note has them. A mismatch leaves the note alone.
 - Both sides use write-then-check, so at least one of them sees the other when the webhook and the defer write interleave. A double resume is harmless: the second schedule attempt is a duplicate revision or upserts the same `review_dispatch` slot.
 - Webhook contract: the HTTP response does not change (`{ processed: true }`). Only logs change.
 - No public API or config change.
