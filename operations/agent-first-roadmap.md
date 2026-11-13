@@ -105,6 +105,10 @@ before continuing its in-progress work. Pause unrelated adapter expansion.
 
 ## Helm product assessment
 
+The 2026-11 [product evaluation](product-evaluation-2026-11.md) records the
+first inventory, integration constraints, Fleet and Grok Bot assessment and a
+proposed Project 3 reconciliation for steps 1–4 below.
+
 1. Inventory current Helm code and knowledge-repo revisions, actual deployments,
    active consumers, product configurations, and pilot outcomes. Distinguish
    historical roadmap statements from currently verified behavior.
