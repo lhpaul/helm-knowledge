@@ -57,7 +57,11 @@ probability is low, but the failure mode is a security hole, so it is worth clos
 
 ## TD-002 — External-review readiness race before pending intent persists
 
-- **Status:** Scheduled — [LEA-258](https://linear.app/lh-paul/issue/LEA-258/helm-race-webhook-readiness-vs-pending-external-review-intent)
+- **Status:** Resolved (2026-11-12) — issue
+  [lhpaul/helm#135](https://github.com/lhpaul/helm/issues/135) (previously tracked as
+  LEA-258), fixed in [helm#140](https://github.com/lhpaul/helm/pull/140) (code,
+  `develop`) and [helm-knowledge#99](https://github.com/lhpaul/helm-knowledge/pull/99)
+  (spec and plan)
 - **Date identified:** 2026-08-20
 - **Origin:** AF early-loop on Mac Mini (LEA-246 / knowledge#35); post-helm#105 retest
 - **Effort:** Medium
