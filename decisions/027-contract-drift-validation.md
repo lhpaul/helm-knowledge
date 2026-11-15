@@ -8,7 +8,7 @@
 
 ## Context
 
-LEA-104 (the Arriendo Fácil schema baseline) shipped through Helm with 13+
+LEA-104 (the pilot product's schema baseline) shipped through Helm with 13+
 contract-drift findings that the code-reviewer fan-out missed across six
 rounds. Haystack caught them post-merge. The misses included column renames,
 type mismatches, JSONB key types, and undocumented columns — all mechanical,

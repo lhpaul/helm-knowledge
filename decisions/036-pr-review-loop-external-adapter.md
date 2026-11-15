@@ -25,7 +25,7 @@ deterministic **blocking vs advisory** classification, `clean` meaning **no
 blockers** (not zero findings), post-clean **advisory dispositions**, and a
 Haystack stop-rule so agents do not chase non-deterministic advisories forever.
 
-Operational constraints from the Helm pilot (Arriendo Fácil) and product direction:
+Operational constraints from the Helm pilot (a private product) and product direction:
 
 - **One external review tool per product** — not a sequential multi-bot stack like
   the template's `review.on_draft.github` + `review.on_ready.github` lists.

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-31
 **Status:** Accepted
-**Context:** Session C1 — Cleanup post-piloto Arriendo Fácil
+**Context:** Session C1 — Cleanup post-piloto del producto privado
 
 ---
 
@@ -25,7 +25,7 @@ two conventions by hand (e.g. looking up `product.specialists.spec_writer` while
 emitting a `spec-writer` specialistId), which was an easy place to introduce typos
 and made the mapping harder to read.
 
-This surfaced during the Arriendo Fácil pilot (LEA-103) while wiring the Linear
+This surfaced during the private-product pilot (LEA-103) while wiring the Linear
 adapter: the config-key/identifier mismatch was a repeated small friction.
 
 ---

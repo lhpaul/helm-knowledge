@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-02
 **Status:** Accepted
-**Context:** Bloque I — readiness/hardening; gap surfaced by the Arriendo Fácil pilot
+**Context:** Bloque I — readiness/hardening; gap surfaced by the private-product pilot
 
 ---
 
@@ -11,7 +11,7 @@
 The spec-writer reads a product's code-repo docs (`README`, agent instructions)
 to ground the spec it derives from a tracker task. When those docs are missing or
 content-drifted, the spec-writer doesn't fail — it **invents** plausible-looking
-context and produces a spec built on fiction. The Arriendo Fácil pilot hit this:
+context and produces a spec built on fiction. The private-product pilot hit this:
 a drifted `CLAUDE.md` led the spec-writer down a wrong path, and the failure was
 silent (a confident-but-wrong spec), not loud (an error the operator could act on).
 
@@ -32,7 +32,7 @@ running pilot or other products.
 `workflow.readiness_gate: skip | warn | required`, **default `skip`**.
 
 - `skip` — no check (backward compatible; existing `product.yaml` files are
-  unaffected, and the running leasity-tenants pilot is untouched unless opted in).
+  unaffected, and the running pilot is untouched unless opted in).
 - `warn` — run the check, log any gaps, but proceed with dispatch.
 - `required` — block dispatch when the product is not ready.
 
@@ -123,7 +123,7 @@ spec-writer?" from the single source of truth, not a duplicated mapping.
 
 - **Silent invention becomes a loud, actionable 422.** Operators see exactly which
   repo is missing which file before an agent dispatch is spent.
-- **The pilot is safe.** Default `skip` means no behavior change for leasity-tenants
+- **The pilot is safe.** Default `skip` means no behavior change for the running pilot
   or any existing product until it explicitly opts in.
 - **Honest status codes.** A precondition failure (`422`) and an infrastructure
   failure (`502`) are never conflated, mirroring the dispatch-honesty principle from

@@ -63,7 +63,7 @@ probability is low, but the failure mode is a security hole, so it is worth clos
   `develop`) and [helm-knowledge#99](https://github.com/lhpaul/helm-knowledge/pull/99)
   (spec and plan)
 - **Date identified:** 2026-08-20
-- **Origin:** AF early-loop on Mac Mini (LEA-246 / knowledge#35); post-helm#105 retest
+- **Origin:** production instance early loop (pilot item LEA-246); post-helm#105 retest
 - **Effort:** Medium
 - **Risk if ignored:** Medium (slow resume; poll still recovers)
 
@@ -86,72 +86,67 @@ fires readiness between "about to defer" and "intent written".
 
 ### Why it matters
 
-AF on Mac Mini depends on **public webhooks** (`af-helm.lhpaul.cl` via Cloudflare
-Tunnel) for a snappy review loop. Relying only on poll lengthens cycles and hides
+The production instance depends on **public webhooks** (through a public tunnel)
+for a snappy review loop. Relying only on poll lengthens cycles and hides
 race bugs until a rate-limit or slow CR run masks them.
 
 ---
 
-## TD-003 — Mac Mini Helm AF: durable `op` session + API launchd
+## TD-003 — Production instance: durable secrets-manager session
 
-- **Status:** Open, reduced scope — only the durable `op` session remains.
-  The launchd half shipped 2026-09-01 and
-  [LEA-259](https://linear.app/lh-paul/issue/LEA-259/helm-af-mini-durable-op-session-api-launchd)
-  was **closed** with it (operator decision, 2026-09-01: close the ticket, keep the
-  `op` session as tracked debt). **This entry is now the only tracker** — there is no
-  open Linear issue for it.
+- **Status:** Open, reduced scope — only the durable secrets-manager session
+  remains. The supervised-service half shipped 2026-09-01 and its tracker item was
+  **closed** with it (operator decision, 2026-09-01: close the ticket, keep the
+  session as tracked debt). Tracked as
+  [lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138).
 - **Date identified:** 2026-08-20
-- **Origin:** AF Helm bootstrap on Mini (`operations/arriendo-facil-mac-mini.md`)
+- **Origin:** production instance bootstrap ([runbook](production-instance.md))
 - **Effort:** Small–Medium
 - **Risk if ignored:** Low (was Medium; the reboot half is fixed)
 
 ### Context
 
-1. `pnpm sync-env -- leasity-tenants` on the Mini needs an unlocked 1Password session;
-   today `.env` is often injected from the MacBook.
-2. ~~Helm API for AF runs in tmux (`helm-af-api`); a reboot loses the process until
-   someone re-attaches.~~ Confirmed in production on 2026-09-01: the Mini rebooted at
-   05:52 and the API stayed down until 06:41 — ~49 minutes of 502 on the public
-   ingress, with Linear and GitHub webhooks pointed at it.
+1. `pnpm sync-env` on the production host needs a signed-in secrets-manager
+   session; today `.env` is often generated on another machine and copied over.
+2. ~~The API ran in a terminal multiplexer; a reboot lost the process until
+   someone re-attached.~~ Confirmed in production on 2026-09-01: the host rebooted
+   and the API stayed down for ~49 minutes, returning 502 on the public ingress
+   while the tracker and GitHub webhooks pointed at it.
 
-### Resolved — API under launchd (2026-09-01)
+### Resolved — API as a supervised service (2026-09-01)
 
-`com.lh.helm.af-api`, a user LaunchAgent with `RunAtLoad` + `KeepAlive`, replaces the
-tmux session. Verified: `SIGKILL` on the process gets a new pid with `/health` 200 in
-under 8 s. The boot path is the same one the two watchdog LaunchAgents on this box
-already survive reboots with (both logged at 05:52:51, unattended).
+The API now runs as a user-level system service with run-at-login and
+restart-on-exit, replacing the multiplexer session. Verified: killing the process
+gets a new pid with `/health` 200 in under 8 s. The boot path is the same one the
+host's watchdog services already survived reboots with. The service definition and
+its installer live in the owner's private operations repo.
 
-Source of truth is the Cerebro LH repo:
-`scripts/mac-mini/launchd/com.lh.helm.af-api.plist`, `scripts/mac-mini/helm-af-api`
-(control CLI), `scripts/mac-mini/install-helm-af-api.sh`.
+### Still open — durable secrets-manager session
 
-### Still open — durable `op` session
-
-After each reboot `op` reports `no active session found for account my`, and the
-1Password desktop app does not auto-unlock. Note that
-`apps/api/scripts/sync-env-from-1password.sh` calls `op inject`, which already honours
-`OP_SERVICE_ACCOUNT_TOKEN` — a service account would need **no code change**, only an
-account allowed to issue one.
+After each reboot the secrets-manager CLI has no active session, and the desktop
+app does not auto-unlock. `apps/api/scripts/sync-env-from-1password.sh` calls the
+CLI's inject command, which already honours a service-account token — a service
+account would need **no code change**, only an account plan allowed to issue one.
 
 This no longer blocks unattended operation: `apps/api/.env` persists on disk across
 reboot, so the API comes back on its own. What is still manual is *regenerating* that
-file (secret rotation, a new key), which falls back to the MacBook inject documented in
-the runbook.
+file (secret rotation, a new key), which falls back to generating it on another
+machine as described in the private runbook.
 
 **Why it was deferred rather than fixed (2026-09-01).** The reboot failure mode — the
-one that actually cost ~49 minutes of ingress downtime — is closed by launchd. An `op`
-session only buys the ability to regenerate `.env` on the Mini alone, which happens
-rarely and involves the operator anyway. A service account is the clean fix and needs no
-code change, but it is unconfirmed whether an individual 1Password plan can issue one;
+one that actually cost ~49 minutes of ingress downtime — is closed by the supervised
+service. A session only buys the ability to regenerate `.env` on the host alone, which
+happens rarely and involves the operator anyway. A service account is the clean fix and
+needs no code change, but it is unconfirmed whether the current plan can issue one;
 that check is the first step whenever this is picked up. Storing the secrets in the
-Mini's Keychain was considered and rejected: it would duplicate secrets outside
-1Password, against the vault's stated policy.
+host's OS keychain was considered and rejected: it would duplicate secrets outside the
+secrets manager, against the vault's stated policy.
 
-**What would reopen this:** secrets rotating often enough that the MacBook inject
-becomes a bottleneck, or a second machine needing the same env.
+**What would reopen this:** secrets rotating often enough that generating `.env`
+elsewhere becomes a bottleneck, or a second machine needing the same env.
 
 ### Why it matters
 
-Without this, every Mini reboot or env refresh is a manual MacBook→scp dance and
-the public ingress (`af-helm.lhpaul.cl`) points at a dead `:3001` until someone
-notices (tunnel up + API down → 502).
+Without this, every env refresh on the production host is a manual copy from another
+machine, and after a failed restart the public ingress points at a dead `:3001` until
+someone notices (tunnel up + API down → 502).

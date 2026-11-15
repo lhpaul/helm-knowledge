@@ -8,14 +8,14 @@ ADR-038 §2 fingerprint composition)
 Loop), ADR-037 (Review Adjudicator), ADR-038 (Sticky Finding Progress),
 ADR-040 (Early-Artifact Review Loop), ADR-041 (Reviewer Disagreement Policy),
 ADR-042 (Cumulative Review-Loop Budget), lhpaul/helm#107,
-LEA-246 / lhpaul/leasity-tenants#16
+LEA-246 / pilot PR #16
 
 ---
 
 ## Context
 
 LEA-246 produced the first churn loop that no existing control could stop
-**cheaply**. On `lhpaul/leasity-tenants#16`:
+**cheaply**. On pilot PR #16:
 
 - `test-reviewer` held a MEDIUM asking for real Expo Router runtime coverage
   and a Maestro end-to-end flow.

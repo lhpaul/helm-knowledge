@@ -4,7 +4,7 @@
 **Status:** Accepted
 **Context:** Continuation of ADR-034 (Linear native status mirroring / by-type
 2-bucket). Builds on ADR-033 (tracker writeback) and ADR-032 (`merged`/`released`
-split). Surfaced by the Arriendo Fácil native backfill (**EP#13**, 2026-06-07):
+split). Surfaced by the pilot product's native backfill (**EP#13**, 2026-06-07):
 the AF Linear team has two `completed`-type states (`Merged` + `Released`), and
 the backfill put `released` items onto `Merged`.
 

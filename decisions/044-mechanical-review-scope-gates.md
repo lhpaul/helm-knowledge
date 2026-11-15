@@ -3,7 +3,7 @@
 **Date:** 2026-08-21
 **Status:** Accepted
 **Amends:** ADR-027 (contract-drift validation), ADR-037 (adjudicator), ADR-043 (sticky fidelity)
-**Related:** LEA-110 / lhpaul/leasity-tenants#18
+**Related:** LEA-110 / pilot PR #18
 
 ---
 

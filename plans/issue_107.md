@@ -212,7 +212,7 @@ Decision: [ADR-043](../decisions/043-sticky-fidelity-churn-controls.md).
 - Single app PR against `develop`, no feature flag. Every control is inert
   without a catalogue entry, a test-fidelity finding, or an operator comment, so
   the blast radius on a quiet product is zero.
-- No `product.yaml` change is required. Arriendo Fácil's existing catalogue
+- No `product.yaml` change is required. The pilot product's existing catalogue
   entry starts taking effect at the code-review gate the moment this merges —
   that is the intended outcome, and it is the one behavior change a product
   operator will notice without opting in.

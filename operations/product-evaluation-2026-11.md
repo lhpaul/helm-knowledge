@@ -40,7 +40,7 @@ Every finding is labeled:
 
 | Deployment | What runs | Evidence | Label |
 | --- | --- | --- | --- |
-| Production instance for one private product | Helm API (`apps/api`, Bun) as a user LaunchAgent with `KeepAlive` on the owner's primary always-on node. Public HTTPS ingress through a named Cloudflare Tunnel receives GitHub and Linear webhooks. Operational data lives outside the code checkout. | Production runbook in `operations/` (2026-09-01) and owner's notes; health 200 recorded after a tunnel-client upgrade on 2026-11-02 | Recorded |
+| Production instance for one private product | Helm API (`apps/api`, Bun) as a user-level system service with restart-on-exit on the owner's primary always-on node. Public HTTPS ingress through a named tunnel receives GitHub and Linear webhooks. Operational data lives outside the code checkout. | Production runbook in `operations/` (2026-09-01) and owner's notes; health 200 recorded after a tunnel-client upgrade on 2026-11-02 | Recorded |
 | Same instance: update path | The service runs from a dedicated checkout that the owner updates by hand (pull and restart). Development agents must use separate clones. | `AGENT.md` (Helm Dev authorization) and owner's notes | Recorded |
 | Same instance: activity | Helm-published PRs for that product appeared on 2026-11-05 through 2026-11-12; two were still open at the snapshot. | GitHub PR history, counted below | Verified |
 | Dashboard (`apps/web`) | A React dashboard exists in the monorepo (product tabs, polling). | Code at `f0cbf4d` | Verified (code only) |
@@ -114,8 +114,8 @@ consumer's work, not a Helm outage. The owner's notes record a decision on
    *Recorded.*
 3. **Linear webhook setup.** Creating the webhook through the API needs an
    admin-scoped token; it was configured in the UI (helm#104). *Recorded.*
-4. **Secrets.** The service environment is generated from 1Password. The node
-   has no durable 1Password session, so regenerating it is a manual step from
+4. **Secrets.** The service environment is generated from the secrets
+   manager. The node has no durable secrets-manager session, so regenerating it is a manual step from
    another machine: TD-003 in the [tech-debt register](tech-debt.md), tracked
    as [helm#138](https://github.com/lhpaul/helm/issues/138). *Verified as open.*
 5. **Manual, unversioned updates.** The owner pulls and restarts the service
@@ -138,7 +138,10 @@ consumer's work, not a Helm outage. The owner's notes record a decision on
    workspace includes that checkout, so agent sessions do not use it.
    *Recorded.*
 9. **Public operational detail.** An existing runbook in this public repo
-   contains node-specific operational detail. See decision 7. *Verified.*
+   contained node-specific operational detail. See decision 7. *Verified.*
+   Addressed after this evaluation by
+   [lhpaul/helm#145](https://github.com/lhpaul/helm/issues/145), which replaced
+   it with a [generic runbook](production-instance.md).
 
 ## 5. Fleet and Grok Bot
 
@@ -196,7 +199,7 @@ These are proposals. No field, status or issue was changed.
 | --- | --- | --- |
 | [helm#136](https://github.com/lhpaul/helm/issues/136) (Todo) | This evaluation | Move to Done when the PR merges |
 | [helm#137](https://github.com/lhpaul/helm/issues/137) (Todo) | Created on 2026-11-12 for Helm Core C0, assuming no repository existed. [helm-core#1](https://github.com/lhpaul/helm-core/issues/1) completed C0 on 2026-10-30: the repository is public under Apache-2.0, and C1–C8 are done. | Close as duplicate of helm-core#1, or rewrite it to cover only the open C0 points (branch protection, owners) if any remain |
-| [helm#138](https://github.com/lhpaul/helm/issues/138) (Todo, Low) | TD-003 is still open | Keep. It is an operations decision (can the 1Password plan issue a service account?), not Helm code |
+| [helm#138](https://github.com/lhpaul/helm/issues/138) (Todo, Low) | TD-003 is still open | Keep. It is an operations decision (can the secrets-manager plan issue a service account?), not Helm code |
 | [helm#62](https://github.com/lhpaul/helm/issues/62) (Todo, Parked) | Research idea from 2026-07 on CLI and SQLite memory; not in the roadmap | Close as not planned, or keep Parked with a review date |
 | 7 issues from an unrelated private repository (Done) | Not Helm or Core work; they make board views and counts misleading | Remove them from the board (archiving does not change the issues) |
 | [helm#1](https://github.com/lhpaul/helm/pull/1), a PR (Done) | Historical PR added as an item | Archive |

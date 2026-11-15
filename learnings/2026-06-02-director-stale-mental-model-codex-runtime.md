@@ -12,7 +12,7 @@ tags: ["pilot", "session-brief", "intake-protocol", "meta", "codex-runtime", "di
 
 ## Context
 
-The Arriendo Fácil pilot was blocked at LEA-109 (Better Auth setup). The
+The private-product pilot was blocked at LEA-109 (Better Auth setup). The
 implementer dispatch had failed turn 1 under Codex CLI 0.133.0 with
 `image_generation_user_error: gpt-image-2 does not exist`. After the
 operator upgraded Codex CLI to 0.136.0 (which fixed that bug), a smoke

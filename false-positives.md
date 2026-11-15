@@ -80,7 +80,7 @@ testcontainers practice.
 **Example:** `packages/db/test/fixture.ts` defines
 `const postgresUser = 'postgres'`, `const postgresPassword = 'postgres'`, and an
 unprivileged `app_user`/`app_user` role for the throwaway `postgres:16-alpine`
-container. Flagged by Haystack on PR lhpaul/leasity-tenants#3 (LEA-104) as a
+container. Flagged by Haystack on pilot PR #3 (LEA-104) as a
 "Rules violation / secrets policy" — dismissed.
 
 ---
@@ -100,7 +100,7 @@ fail-closed.
 
 **Example:** `apps/api/src/app.ts` returns `200` with `status: 'degraded'` +
 `db: 'unreachable'` when the DB probe fails. Flagged by Haystack on PR
-lhpaul/leasity-tenants#3 (LEA-104) as a "Rules violation" — dismissed as
+pilot PR #3 (LEA-104) as a "Rules violation" — dismissed as
 spec-intended.
 
 > Note (separate, NOT a false positive): routing the DB-probe failure log

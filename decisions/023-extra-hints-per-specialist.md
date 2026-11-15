@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-31
 **Status:** Accepted
-**Context:** Session H4 — gaps de iteración y readiness del piloto Arriendo Fácil
+**Context:** Session H4 — gaps de iteración y readiness del piloto con el producto privado
 
 ---
 
@@ -13,7 +13,7 @@ product context (README + AGENT.md/CLAUDE.md via `fetch-product-context`). When 
 specialist repeatedly misses a product-specific pattern, there was no structured
 way to remind it *persistently for that product*.
 
-The Arriendo Fácil pilot surfaced two concrete instances:
+The private-product pilot surfaced two concrete instances:
 
 - The **plan-writer** did not pin exact dependency versions even though the README
   implied it.

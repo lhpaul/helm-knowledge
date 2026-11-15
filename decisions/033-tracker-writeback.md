@@ -4,7 +4,7 @@
 **Status:** Accepted
 **Context:** Bloque I / writeback — close the store→tracker loop. Follows ADR-029
 (item store kept pure-local) and ADR-032 (`merged`/`released` split). Surfaced
-by the Arriendo Fácil pilot (Linear showed every LEA item stale).
+by the private-product pilot (Linear showed every LEA item stale).
 
 ---
 

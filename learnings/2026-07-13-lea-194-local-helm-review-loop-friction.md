@@ -4,8 +4,8 @@ category: "workflow-process"
 date: "2026-07-13"
 source:
   type: "session"
-  ref: "LEA-194 / lhpaul/leasity-tenants#14"
-tags: [review-loop, adjudication, webhooks, arriendo-facil]
+  ref: "LEA-194 / pilot PR #14"
+tags: [review-loop, adjudication, webhooks, pilot]
 ---
 
 # LEA-194: local Helm needs manual transitions and review re-dispatch
@@ -57,8 +57,7 @@ counters also reset per dispatch (see helm#65), masking non-convergence.
   [#72](https://github.com/lhpaul/helm/issues/72) persist product_decision,
   [#73](https://github.com/lhpaul/helm/issues/73) secure-default adjudicator;
   existing [#65](https://github.com/lhpaul/helm/issues/65)
-- Backlog (Leasity):
-  [LEA-204](https://linear.app/lh-paul/issue/LEA-204) payment allowlist doctrine,
-  [LEA-205](https://linear.app/lh-paul/issue/LEA-205) UF pending doctrine
+- Backlog (pilot product): two follow-up items for product-domain doctrine
+  (LEA-204, LEA-205)
 - [ADR-040](../decisions/040-early-artifact-review-loop.md) early artifact review loop
-- Impl PR: https://github.com/lhpaul/leasity-tenants/pull/14
+- Impl PR: pilot PR #14
