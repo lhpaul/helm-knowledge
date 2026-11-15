@@ -19,8 +19,8 @@ happens.
 
 ## Evidence
 
-Arriendo Fácil [LEA-246](https://linear.app/lh-paul/issue/LEA-246) /
-[lhpaul/leasity-tenants#16](https://github.com/lhpaul/leasity-tenants/pull/16),
+Pilot item LEA-246 /
+pilot PR #16,
 2026-08-20:
 
 - `test-reviewer` filed a MEDIUM asking for real Expo Router runtime coverage
@@ -48,7 +48,7 @@ Four gaps let it run that long:
 
 ## Current workaround
 
-Shipped for Arriendo Fácil as interim mitigation, and explicitly **not** a
+Shipped for the pilot product as interim mitigation, and explicitly **not** a
 replacement for the Helm fix:
 
 - a `false-positives.md` entry for the unit-smoke-vs-Maestro pattern, and

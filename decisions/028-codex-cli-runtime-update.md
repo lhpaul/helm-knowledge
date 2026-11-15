@@ -12,7 +12,7 @@
 mode so a product can run against the ChatGPT subscription instead of metered
 API billing. It was implemented and discovered against **Codex CLI v0.133.0**.
 
-The Arriendo Fácil pilot was blocked at LEA-109 (Better Auth setup). The
+The private-product pilot was blocked at LEA-109 (Better Auth setup). The
 implementer dispatch had failed under Codex CLI **0.133.0** with:
 
 ```text

@@ -1,19 +1,19 @@
 ---
-title: "Gaps de iteración y readiness expuestos por el piloto Arriendo Fácil"
+title: "Gaps de iteración y readiness expuestos por el piloto con el producto privado"
 category: "workflow-process"
 date: "2026-05-31"
 source:
   type: "session"
-  ref: "piloto AF LEA-103 (Helm contra leasity-tenants)"
+  ref: "piloto LEA-103 (Helm contra el producto privado)"
 tags: ["pilot", "iteration", "product-context", "specialists"]
 ---
 
-# Gaps de iteración y readiness expuestos por el piloto Arriendo Fácil
+# Gaps de iteración y readiness expuestos por el piloto con el producto privado
 
 ## Context
 
 Durante el primer ciclo end-to-end de Helm contra un producto real
-(`leasity-tenants` con tracker Linear, runtime Codex, item LEA-103 "Setup monorepo"),
+(producto privado con tracker Linear, runtime Codex, item LEA-103 "Setup monorepo"),
 salieron a la luz patrones que en el playground no se notaban porque el contexto
 era controlado.
 
@@ -123,10 +123,10 @@ en el roadmap, después de cerrar el bloque I (iteración y readiness).
 ## Related artifacts
 
 - Historical private roadmap (retired 2026-10-06; not in this repo)
-  — section "Gaps identified during the Arriendo Fácil pilot".
+  — section "Gaps identified during the private-product pilot".
   In-repo strategy snapshot: [`strategy.md`](../strategy.md).
 - `decisions/005-agent-runtime-interface.md` — ADR original del runtime, base
   sobre la que apoyamos los remediators.
 - `decisions/019-reviewers-and-remediation.md` (ADR-019) — patrón del
   remediation-agent del code-review, modelo a espejar para H2.
-- Linear LEA-103 (`https://linear.app/lh-paul/issue/LEA-103`) — primer item piloto.
+- LEA-103 — primer item piloto.

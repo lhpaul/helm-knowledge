@@ -10,7 +10,7 @@ Use this when:
 - **Onboarding a new product** to Helm — configure the rulesets before
   the first `spec-writer` dispatch lands a PR.
 - **Migrating an existing trunk-based product** to develop+main (e.g.
-  Arriendo Fácil migrated 2026-06-03; see the corresponding entry in
+  the pilot product migrated 2026-06-03; see the corresponding entry in
   `operations/migrations/`).
 
 The setup creates **two rulesets** per code repo: `helm-develop` (the
@@ -154,7 +154,7 @@ Helm reads this on dispatch; restart the Helm API after the
 ```bash
 lsof -i :3001 | awk 'NR>1 {print $2}' | xargs kill -9
 cd <helm checkout>
-pnpm sync-env -- leasity-tenants   # or: -- helm  (resolve 1Password → apps/api/.env)
+pnpm sync-env -- <product>   # resolve secrets → apps/api/.env
 pnpm dev 2>&1 \
   | tee logs/helm-api-$(date +%Y%m%d-%H%M).log &
 sleep 15

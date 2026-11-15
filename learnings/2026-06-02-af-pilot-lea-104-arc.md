@@ -4,7 +4,7 @@ category: "agent-behavior"
 date: "2026-06-02"
 source:
   type: "session"
-  ref: "piloto AF LEA-104 (Drizzle schema base — 4 domain tables + RLS)"
+  ref: "piloto LEA-104 (Drizzle schema base — 4 domain tables + RLS)"
 tags: ["pilot", "code-review", "schema", "contract-drift", "stop-rule", "haystack"]
 ---
 
@@ -12,7 +12,7 @@ tags: ["pilot", "code-review", "schema", "contract-drift", "stop-rule", "haystac
 
 ## Context
 
-LEA-104 fue el segundo item del piloto Arriendo Fácil (después de LEA-103
+LEA-104 fue el segundo item del piloto con el producto privado (después de LEA-103
 monorepo bootstrap). Scope reducido: 4 tablas de dominio en Drizzle + RLS
 + helper `withTenantContext`. Contrato canónico documentado en §4.2 del
 `CLAUDE.md` del producto.
@@ -22,7 +22,7 @@ largo de 5+ rondas**, con el `reviewer-fanout` de Helm (code + security +
 test, 6 rondas en total) dejando pasar 13+ findings de contract drift que
 Haystack capturó al primer triage post-merge-ready.
 
-El arco completo del PR `lhpaul/leasity-tenants#3`:
+El arco completo del pilot PR #3:
 
 | Batch | Commit | Qué resolvió | Caught by |
 | ----- | ------ | ------------ | --------- |
@@ -63,9 +63,9 @@ Todo esto Haystack lo agarró con análisis adversarial. La conclusión es
 **estructural**: el code-reviewer LLM, sin instrucción explícita de
 comparar diff vs §4, prefiere validar code quality general.
 
-Captured como issue #53 en cerebro-LH/tareas. Diseño + prompt entregados
+Captured como issue #53 en el tracker privado del owner. Diseño + prompt entregados
 2026-06-02 (ver session prompt `sesion-code-reviewer-contract-validation.md`
-en `cerebro-LH/prompts`). ADR-027 documenta la decisión.
+en las notas privadas del owner). ADR-027 documenta la decisión.
 
 ### 2. Haystack es no-determinístico — necesita stop-rule explícito
 
@@ -75,7 +75,7 @@ distinto cada vez incluso sobre el mismo SHA. LEA-104 osciló
 un pozo sin fondo.**
 
 Stop-rule operacional escrita y validada en LEA-104 (ver
-`prompts/piloto-arriendo-facil-driver.md` §"Haystack stop rule — when to
+the private pilot driver prompt §"Haystack stop rule — when to
 converge"):
 
 **Bloqueante (no merge hasta resolver):**
@@ -165,7 +165,7 @@ batches, costo similar al original.
 ## Related artifacts
 
 - Session prompt para #53: `sesion-code-reviewer-contract-validation.md`
-  (Helm prompts, cerebro-LH).
+  (Helm prompts, notas privadas del owner).
 - ADR-027 — code-reviewer contract drift validation (pendiente, sesión
   Helm en curso al cierre de este learning).
 - `helm-knowledge/false-positives.md` — catálogo iniciado en LEA-104.
@@ -175,8 +175,8 @@ batches, costo similar al original.
   de seguridad que aseguró que las HIGH del code-reviewer fluyeran al
   code-remediator. Validada por primera vez con findings reales en
   LEA-104 round 2.
-- Linear LEA-104: `https://linear.app/lh-paul/issue/LEA-104` — issue
+- LEA-104 — issue
   source.
-- PR `lhpaul/leasity-tenants#3` — el PR que generó el arco.
-- `prompts/piloto-arriendo-facil-driver.md` §"Haystack stop rule" — la
+- pilot PR #3 — el PR que generó el arco.
+- the private pilot driver prompt §"Haystack stop rule" — la
   regla operacional escrita post-LEA-104.

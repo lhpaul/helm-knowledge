@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-02
 **Status:** Accepted
-**Context:** Bloque I — readiness/hardening; gap surfaced by the Arriendo Fácil pilot (LEA-104, LEA-109)
+**Context:** Bloque I — readiness/hardening; gap surfaced by the private-product pilot (LEA-104, LEA-109)
 
 ---
 
@@ -24,7 +24,7 @@ again **twice on one item**, LEA-109 (Better Auth setup):
    testcontainers integration suite couldn't run, and the implementer would have
    needed a rollback again if dispatched.
 
-Each time, the workaround documented in `piloto-arriendo-facil-driver.md`'s
+Each time, the workaround documented in the private pilot driver prompt's
 gotchas table was: manually edit `<helm-data>/items/<item>.json`, change
 `currentStage` from `in-development` to `plan-ready`, and append a history entry
 by hand. That works but is error-prone (typos, inconsistent reasons, no
@@ -170,5 +170,5 @@ private `applyTransition` helper; only the `validateTransition` call differs.
   late-stage rework path this complements at the early stage).
 - [ADR-026](026-product-readiness-gate.md) — product-readiness gate (sibling
   pre-dispatch hardening from the same pilot evidence).
-- `piloto-arriendo-facil-driver.md` gotchas table — documents the manual
+- the private pilot driver prompt gotchas table — documents the manual
   JSON-edit workaround that this endpoint supersedes as of this design.

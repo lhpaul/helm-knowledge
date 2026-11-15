@@ -2,13 +2,13 @@
 
 **Date:** 2026-06-02
 **Status:** Accepted
-**Context:** Post-pilot fix — reviewer-remediation gap found on Arriendo Fácil item LEA-104
+**Context:** Post-pilot fix — reviewer-remediation gap found on pilot item LEA-104
 
 ---
 
 ## Context
 
-While reviewing the implementation PR for LEA-104 (`lhpaul/leasity-tenants#3`),
+While reviewing the implementation PR for LEA-104 (pilot PR #3),
 the human reviewer found that **two HIGH findings reported by the code-reviewer
 were never addressed**, even though the item had gone through
 `code-review → remediation → code-review` and looked done.

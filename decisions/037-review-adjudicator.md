@@ -20,7 +20,7 @@ works when reviewers agree on direction, but fails when they conflict:
 - **Remediation oscillation** — the remediator applies cycle *N* fixes, then
   cycle *N+1* reverts them because a different reviewer signal dominated.
 
-The Arriendo Fácil pilot (LEA-192) showed both failure modes: a Helm remediation
+The private-product pilot (LEA-192) showed both failure modes: a Helm remediation
 commit reverted operator-approved fixes, and the loop required mid-run human
 input for product decisions that should have escalated once, structurally.
 

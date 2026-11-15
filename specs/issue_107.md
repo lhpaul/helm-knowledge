@@ -3,8 +3,8 @@
 ## Context
 
 Helm's bounded code-review loop (ADR-036) can spend its whole remediation budget
-on a single MEDIUM finding that no mechanical change will close. On Arriendo
-Fácil LEA-246 / `lhpaul/leasity-tenants#16` a `test-reviewer` MEDIUM asked for
+on a single MEDIUM finding that no mechanical change will close. On the private
+pilot product, LEA-246 / pilot PR #16 a `test-reviewer` MEDIUM asked for
 Expo Router runtime coverage and a Maestro end-to-end flow while the
 `code-remediator` rewrote, five times, the Vitest unit smoke that already
 satisfied the item's closed AC checklist. Code and security review were
@@ -17,7 +17,7 @@ Discovery for this item is
 the decision record is
 [ADR-043](../decisions/043-sticky-fidelity-churn-controls.md).
 
-This item makes the durable Helm fix. The Arriendo Fácil interim mitigation
+This item makes the durable Helm fix. The pilot product's interim mitigation
 (a `false-positives.md` entry plus remediator `extra_hints`) already shipped and
 does not replace it — the catalogue entry cannot reach the code-review gate at
 all today, and hints are advisory prose.

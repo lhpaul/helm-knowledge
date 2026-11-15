@@ -4,7 +4,7 @@ category: "agent-behavior"
 date: "2026-06-02"
 source:
   type: "session"
-  ref: "piloto AF LEA-105 (Drizzle core mirror — 6 core_* tables, service-role only, no RLS)"
+  ref: "piloto LEA-105 (Drizzle core mirror — 6 core_* tables, service-role only, no RLS)"
 tags: ["pilot", "code-review", "schema", "contract-drift", "stack-validation", "haystack"]
 ---
 
@@ -19,7 +19,7 @@ que había tomado 5 batches por §4-drift que el `reviewer-fanout` no pescó.
 
 Scope: 6 tablas espejo del core (`core_*`), service-role only, **sin RLS**.
 Contrato canónico en §4.3 del `CLAUDE.md` del producto. PR de código:
-`lhpaul/leasity-tenants#4`.
+pilot PR #4.
 
 ### Side-by-side (LEA-104 pre-#53 vs LEA-105 post-#53)
 
@@ -85,5 +85,5 @@ follow-up para afinar el prompt #53 hacia *"any divergence including additive
 constraints"* (exhaustive equality, no presence-only). Si no se repite, este
 queda como caso aislado de un solo data point.
 
-(LEA-106 — HTTP client al Leasity Core — no toca schema, así que no ejerce
+(LEA-106 — cliente HTTP a un servicio interno — no toca schema, así que no ejerce
 presión sobre el stack §4.)

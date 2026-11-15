@@ -4,7 +4,7 @@
 **Status:** Accepted
 **Context:** Continuation of ADR-033 (tracker writeback / `helm:*` label). Follows
 ADR-032 (`merged`/`released` split) and ADR-029 (item store kept pure-local).
-Surfaced by the Arriendo Fácil pilot: after the writeback backfill the `helm:*`
+Surfaced by the private-product pilot: after the writeback backfill the `helm:*`
 labels were current, but the team's **native** Linear Status column still read
 `Backlog` for every LEA item (verified 2026-06-05).
 

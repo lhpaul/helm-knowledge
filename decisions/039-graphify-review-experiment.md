@@ -52,7 +52,7 @@ integration.
 
 ### 1. Run a manual experiment on one product before any Helm integration
 
-**Pilot product:** Arriendo Fácil (`leasity-tenants`), because it already
+**Pilot product:** the private pilot product, because it already
 exercises the review loop and has multi-package blast-radius risk
 (`packages/db` ↔ `apps/api` ↔ web/mobile).
 

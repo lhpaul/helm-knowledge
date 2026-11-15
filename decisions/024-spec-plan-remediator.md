@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-01
 **Status:** Accepted
-**Context:** Session H2 — asymmetric-iteration gaps from the Arriendo Fácil pilot
+**Context:** Session H2 — asymmetric-iteration gaps from the private-product pilot
 
 ---
 
