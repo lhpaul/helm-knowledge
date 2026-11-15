@@ -18,9 +18,11 @@ found detail of the same kind in code and configuration files of
 - `apps/api/.env.example` documents a generic `.env.<product>` input with
   placeholder references (`op://<vault>/<item>/<field>`).
 - `sync-env` accepts any product slug that matches
-  `^[a-z0-9][a-z0-9-]*$` (at most 64 characters) instead of a fixed list, and
-  rejects everything else before calling the secrets manager. Existing input
-  files keep working with the same command.
+  `^[a-z0-9][a-z0-9-]*$` (at most 64 characters) instead of a fixed list,
+  except the reserved slug `example`, which names the committed
+  `.env.example` template. It rejects `example` and every non-matching slug
+  before calling the secrets manager. Existing input files keep working with
+  the same command.
 - The `.gitignore` comment is generic; the ignored patterns do not change.
 - `pnpm lint` and `pnpm test` pass.
 
