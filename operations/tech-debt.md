@@ -13,6 +13,7 @@ deleting it.
 | ------------- | ------------------------------------------ |
 | `Open`        | Not yet scheduled                          |
 | `Scheduled`   | Has a tracker item / planned session       |
+| `In progress` | Decided and being carried out              |
 | `Resolved`    | Fixed — keep the row with the PR reference |
 
 ---
@@ -94,11 +95,14 @@ race bugs until a rate-limit or slow CR run masks them.
 
 ## TD-003 — Production instance: durable secrets-manager session
 
-- **Status:** Open, reduced scope — only the durable secrets-manager session
-  remains. The supervised-service half shipped 2026-09-01 and its tracker item was
-  **closed** with it (operator decision, 2026-09-01: close the ticket, keep the
-  session as tracked debt). Tracked as
-  [lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138).
+- **Status:** In progress, pending the owner — a 1Password service account was
+  adopted on 2026-11-16 and the owner configures it on the host by hand
+  ([runbook](secrets-service-account.md)). It becomes `Resolved` when the owner
+  confirms the setup. Tracked as
+  [lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138). Only the durable
+  secrets-manager session remains: the supervised-service half shipped 2026-09-01
+  and its tracker item was **closed** with it (operator decision, 2026-09-01: close
+  the ticket, keep the session as tracked debt).
 - **Date identified:** 2026-08-20
 - **Origin:** production instance bootstrap ([runbook](production-instance.md))
 - **Effort:** Small–Medium
@@ -121,7 +125,7 @@ gets a new pid with `/health` 200 in under 8 s. The boot path is the same one th
 host's watchdog services already survived reboots with. The service definition and
 its installer live in the owner's private operations repo.
 
-### Still open — durable secrets-manager session
+### In progress — durable secrets-manager session
 
 After each reboot the secrets-manager CLI has no active session, and the desktop
 app does not auto-unlock. `apps/api/scripts/sync-env-from-1password.sh` calls the
@@ -144,6 +148,22 @@ secrets manager, against the vault's stated policy.
 
 **What would reopen this:** secrets rotating often enough that generating `.env`
 elsewhere becomes a bottleneck, or a second machine needing the same env.
+
+**Decision (2026-11-16): adopt a 1Password service account.** The owner confirmed
+that the plan can issue service accounts, which was the open first step. The owner
+creates the account (read-only, limited to the one vault the env needs) and
+configures it on the host by hand. The token lives in the host user's login
+keychain and is loaded into `OP_SERVICE_ACCOUNT_TOKEN` only for the `sync-env` run.
+The env secrets stay only in 1Password, so the keychain rejection above still
+holds: the keychain keeps only the revocable token that reads them. Procedure,
+checks and risks: [secrets-service-account.md](secrets-service-account.md).
+
+`op inject` supports service accounts. The script's `op account list` sign-in
+check is not covered by the service-account documentation, so the runbook checks
+it before the first run. If it fails, the script needs a small code change, made as
+a separate item. The status moves to `Resolved` when the owner confirms on
+[lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138) that `.env` was
+regenerated on the host.
 
 ### Why it matters
 
