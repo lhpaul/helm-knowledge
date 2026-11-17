@@ -49,6 +49,16 @@ the external review provider is set in `review.external`.
   from another machine. The API has no authentication; prefer an
   authenticated proxy.
 
+### Cross-origin protection (helm#162)
+
+- State-changing API routes (everything except `GET`/`HEAD`/`OPTIONS` and the
+  signed webhooks) reject browser requests whose `Origin` is not an allowed
+  Helm UI origin, with `403`. Requests without `Origin` (curl, scripts, the
+  smoke checks below) and the GitHub/Linear webhooks are not affected.
+- Allowed by default: the local UI dev server on port 5173 (`localhost`,
+  `127.0.0.1`, `[::1]`). A browser tool on any other origin needs that origin
+  in `HELM_ALLOWED_ORIGINS` (comma-separated) and an API restart.
+
 ### Running the API as a service
 
 - Run the API as a supervised service with restart-on-exit, not in a terminal
