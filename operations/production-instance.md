@@ -17,7 +17,7 @@ the product's `.helm/product.yaml`.
 | Piece | Description |
 |---|---|
 | Host | A dedicated always-on machine run by the owner |
-| Helm monorepo | A dedicated checkout on `develop`, used only to serve the instance and updated by hand by the owner. Development agents use separate clones. |
+| Helm monorepo | A dedicated checkout on `develop`, used only to serve the instance and updated by hand by the owner. Development agents use separate clones. The [release policy](release-policy.md) proposes running a release tag instead, with a generic update and rollback procedure. |
 | Knowledge and app repos | The consumer's private knowledge and code repos, checked out next to Helm |
 | `HELM_DATA_DIR` | A directory outside the code checkout |
 | API | `apps/api` bound to localhost (`:3001`), run as a user-level system service that starts at login and restarts on failure |
@@ -137,6 +137,7 @@ curl -s -X POST "$BASE/api/products/<product-slug>/items/<ITEM-ID>/dispatch"
 
 ## Related
 
+- Release, update and rollback policy (proposal): [release-policy.md](release-policy.md)
 - Review-loop friction learning:
   `learnings/2026-07-13-lea-194-local-helm-review-loop-friction.md`
 - Product onboarding: `operations/onboarding-product.md`

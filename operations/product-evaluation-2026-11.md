@@ -229,6 +229,9 @@ These are proposals. No field, status or issue was changed.
 2. **Release and revision policy.** Tag versions and record the revision the
    production service runs, or document that production tracks a hand-pulled
    `develop`.
+   Addressed after this evaluation by
+   [lhpaul/helm#150](https://github.com/lhpaul/helm/issues/150), which
+   proposes a [release policy](release-policy.md) for the owner to decide.
 3. **Board hygiene.** Approve or adjust the actions in section 6, including
    how `Helm Stage` is used for items Helm did not process.
 4. **Runtime for Helm sessions.** Keep Helm Dev on Grok Bot, plan a move to

@@ -20,6 +20,9 @@ issue_tracker:
 | **Helm Stage** | Workflow stage (Helm writeback; includes `merged` per ADR-032) |
 | **Type** | Feature / Bug / Refactor / Workflow |
 
+When an item counts as `released` (a published Helm version contains it) is
+proposed in the [release policy](release-policy.md#5-released-in-project-3-proposed).
+
 ## Creating backlog items
 
 Prefer the helper (creates the issue **and** adds it to the project):
