@@ -52,9 +52,10 @@ the external review provider is set in `review.external`.
 ### Cross-origin protection (helm#162)
 
 - State-changing API routes (everything except `GET`/`HEAD`/`OPTIONS` and the
-  signed webhooks) reject browser requests whose `Origin` is not an allowed
-  Helm UI origin, with `403`. Requests without `Origin` (curl, scripts, the
-  smoke checks below) and the GitHub/Linear webhooks are not affected.
+  signed webhooks) answer `403` when `Origin` is not an allowed Helm UI
+  origin, or when there is no `Origin` but `Sec-Fetch-Site` is `cross-site` or
+  `same-site`. Requests with neither header (curl, scripts, the smoke checks
+  below) and the GitHub/Linear webhooks are not affected.
 - Allowed by default: the local UI dev server on port 5173 (`localhost`,
   `127.0.0.1`, `[::1]`). A browser tool on any other origin needs that origin
   in `HELM_ALLOWED_ORIGINS` (comma-separated) and an API restart.
