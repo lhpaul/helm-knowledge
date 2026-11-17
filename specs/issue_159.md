@@ -11,7 +11,7 @@ Other listeners in the monorepo:
 - The API listens on `127.0.0.1` by default.
 - `HELM_API_HOST` overrides it explicitly (for example `0.0.0.0` or a LAN address). Empty or whitespace-only values fall back to the default. When the resolved host is not a loopback address, the API logs a warning at startup that the API has no authentication.
 - The startup log prints the real bind address instead of a hard-coded `localhost`.
-- The Vite dev proxy targets `127.0.0.1:3001` so local dev keeps working.
+- The Vite dev proxy follows `HELM_API_HOST` from the shell (`127.0.0.1` by default and for `0.0.0.0`, `[::1]` for `::`, the given address otherwise) so local dev keeps working with any supported bind.
 - Port stays 3001 (out of scope).
 
 ## Impact on existing instances
