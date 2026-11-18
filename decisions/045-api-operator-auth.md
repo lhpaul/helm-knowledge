@@ -232,14 +232,23 @@ The CHANGELOG `[Unreleased]` → Security entry must say this, and the release
 notes must list the steps above.
 
 Rollback: setting `HELM_API_AUTH=disabled` or reverting the release reopens
-every operator read and write to any client that reaches the API. On an
-instance with a public ingress (the reference production layout), **first**
-confirm from outside that the ingress only serves `/api/webhooks/*` and
-`/health` (the interim mitigation) or that an authenticated proxy is in front
-of it, and only then disable auth or revert. On a machine with no ingress and
-no `HELM_API_HOST` override, the rollback only reopens the API to local
-processes, as before this change. Prefer fixing the token (set it, restart)
-over rolling back.
+every operator read and write to any client that reaches the API. Before
+disabling auth or reverting, close every path to the listener other than
+loopback:
+
+- **Public ingress** (the reference production layout): confirm from outside
+  that the ingress only serves `/api/webhooks/*` and `/health` (the interim
+  mitigation) or that an authenticated proxy is in front of it.
+- **Non-loopback bind** (`HELM_API_HOST` set to a LAN or wildcard address):
+  the ingress rule does not cover direct clients on the network. First move
+  the API back to loopback (unset `HELM_API_HOST` or set it to `127.0.0.1`,
+  restart) or block the API port to everything but loopback at the host
+  firewall, and confirm from another host that the port is not reachable.
+
+Only then disable auth or revert. On a machine with no ingress and a
+loopback bind, the rollback only reopens the API to local processes, as
+before this change. Prefer fixing the token (set it, restart) over rolling
+back.
 
 ## Consequences
 

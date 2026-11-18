@@ -57,9 +57,10 @@ dashboard, and `.env.example` documents the variables for `sync-env`.
    - variables section: `HELM_API_TOKEN` (operator token, required unless
      opted out, at least 32 characters, generate with
      `openssl rand -hex 32`, export it too in the `pnpm dev` shell for the
-     dashboard) and `HELM_API_AUTH` (only `disabled`; reopens the API; on an
-     instance with a public ingress only after confirming the ingress serves
-     only `/api/webhooks/*` and `/health`);
+     dashboard) and `HELM_API_AUTH` (only `disabled`; reopens the API; only
+     after the rollback preconditions below: ingress restricted to
+     `/api/webhooks/*` and `/health`, and no non-loopback bind reachable from
+     the network);
    - add `HELM_API_TOKEN=op://<vault>/<item>/<field>` to every product input
      block (`.env.<product>` and `.env.helm`).
    Do not touch `apps/api/scripts/sync-env-from-1password.sh` (making the
@@ -139,10 +140,13 @@ Mapped to the spec's acceptance criteria (AC).
   steps from ADR-045 in the release notes. The operator sets the token in
   the secrets manager and the private `sync-env` input before restarting on
   the new release.
-- Rollback precondition: on an instance with a public ingress or a
-  non-loopback `HELM_API_HOST`, confirm from outside that the ingress only
-  serves `/api/webhooks/*` and `/health` (or that an authenticated proxy is
-  in front) **before** setting `HELM_API_AUTH=disabled` or reverting. The
+- Rollback precondition (ADR-045 "Rollback"), **before** setting
+  `HELM_API_AUTH=disabled` or reverting: with a public ingress, confirm from
+  outside that it only serves `/api/webhooks/*` and `/health` (or that an
+  authenticated proxy is in front); with a non-loopback `HELM_API_HOST`,
+  move the API back to loopback or block the API port to everything but
+  loopback at the host firewall, and confirm from another host that the port
+  is unreachable (the ingress rule does not cover direct LAN clients). The
   `docs/local-dev.md` section, `.env.example`, the CHANGELOG entry and the
   `operations/production-instance.md` note state this, and the startup
   warning for `disabled` points to it.
@@ -157,5 +161,5 @@ startup error naming the variable, `HELM_API_AUTH=disabled` only by exact
 value, tests through the real `app` with auth on, a manual dashboard and
 `/ws` check, the ingress restriction kept as defense in depth, and the
 rollback precondition in every doc. Rollback: `HELM_API_AUTH=disabled` and
-restart, or revert the release, only after the ingress precondition in
-Rollout is met; prefer setting the token.
+restart, or revert the release, only after the ingress and bind
+preconditions in Rollout are met; prefer setting the token.

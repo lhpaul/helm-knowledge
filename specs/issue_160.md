@@ -66,11 +66,15 @@ owner decisions are in ADR-045.
   window in which callers with the old token get `401`.
 - Opt-out for single-user dev machines and for rollback:
   `HELM_API_AUTH=disabled`. It reopens the API to every client that reaches
-  it, so on an instance with a public ingress or a non-loopback
-  `HELM_API_HOST` it may only be used after confirming from outside that the
-  ingress only serves `/api/webhooks/*` and `/health` (or that an
-  authenticated proxy is in front), as described in ADR-045. The docs and the
-  CHANGELOG entry repeat this.
+  it. On an instance with a public ingress it may only be used after
+  confirming from outside that the ingress only serves `/api/webhooks/*` and
+  `/health` (or that an authenticated proxy is in front). With a
+  non-loopback `HELM_API_HOST` it may only be used after moving the API back
+  to loopback or blocking the API port to everything but loopback at the host
+  firewall, and confirming from another host that the port is unreachable;
+  the ingress rule alone does not stop direct LAN clients. See ADR-045
+  "Rollback". The docs, `.env.example` and the CHANGELOG entry repeat both
+  conditions.
 
 ## Acceptance Criteria
 Each criterion is covered by an automated test unless marked *manual*.
