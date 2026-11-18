@@ -185,8 +185,17 @@ Backward compatibility: with fail closed, updating without setting the token
 makes every protected route answer `401` (the dashboard shows errors, operator
 `curl` fails), while webhooks keep advancing items. The CHANGELOG
 `[Unreleased]` → Security entry must say this, and the release notes must
-list the steps above. Rollback: set `HELM_API_AUTH=disabled` and restart, or
-revert the release.
+list the steps above.
+
+Rollback: setting `HELM_API_AUTH=disabled` or reverting the release reopens
+every operator read and write to any client that reaches the API. On an
+instance with a public ingress (the reference production layout), **first**
+restrict the ingress to `/api/webhooks/*` and `/health` (or put an
+authenticated proxy in front of it), confirm from outside that other `/api/*`
+paths are blocked, and only then disable auth or revert. On a machine with no
+ingress and no `HELM_API_HOST` override, the rollback only reopens the API to
+local processes, as before this change. Prefer fixing the token (set it,
+restart) over rolling back.
 
 **Interim mitigation until the implementation ships** (operator-side, no
 Helm change): limit the public ingress to `/api/webhooks/*` and `/health`.

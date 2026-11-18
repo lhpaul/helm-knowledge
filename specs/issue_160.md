@@ -52,7 +52,12 @@ in ADR-045.
   updated in the implementation PRs.
 - Webhooks and `/health` watchdogs: no change.
 - Escape hatch for single-user dev machines and for rollback:
-  `HELM_API_AUTH=disabled`.
+  `HELM_API_AUTH=disabled`. It reopens the API to every client that reaches
+  it, so on an instance with a public ingress or a non-loopback
+  `HELM_API_HOST` it may only be used after the ingress is restricted to
+  `/api/webhooks/*` and `/health` (or an authenticated proxy is in front),
+  as described in ADR-045. The startup warning for `disabled` says so, and
+  the docs and CHANGELOG entry repeat it.
 
 ## Acceptance Criteria
 - With a valid token configured, a protected route without `Authorization`,

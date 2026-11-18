@@ -88,6 +88,13 @@ escape hatch, and make the Vite dev proxy add the header for the dashboard.
   auto-merge.
 - Ship it together with the runbook PR in helm-knowledge and the upgrade
   steps from ADR-045 in the release notes.
+- Rollback precondition: on an instance with a public ingress or a
+  non-loopback `HELM_API_HOST`, restrict the ingress to `/api/webhooks/*` and
+  `/health` (or put an authenticated proxy in front) and verify it from
+  outside **before** setting `HELM_API_AUTH=disabled` or reverting. The
+  `docs/local-dev.md` section, the CHANGELOG entry and the
+  `operations/production-instance.md` note state this, and the startup
+  warning for `disabled` points to it.
 
 ## Risks
 High: authentication on every operator route, fail closed by default. Main
@@ -96,4 +103,5 @@ manual endpoints (webhooks keep working); a proxy header bug breaks the
 dashboard; a test fixture that bypasses auth hides a regression. Mitigations:
 explicit startup error naming the variable, `HELM_API_AUTH=disabled` escape
 hatch, tests through the real `app`, and a manual dashboard check.
-Rollback: `HELM_API_AUTH=disabled` and restart, or revert the release.
+Rollback: `HELM_API_AUTH=disabled` and restart, or revert the release, only
+after the ingress precondition in Rollout is met; prefer setting the token.
