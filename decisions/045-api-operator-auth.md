@@ -114,8 +114,8 @@ Add `POST /api/session`, which takes the operator token once and sets an
 `HttpOnly`, `SameSite=Strict` session cookie (signed with a server key,
 `Secure` over HTTPS). The middleware accepts either the bearer header or a
 valid session cookie. The cookie rides on `fetch` and on the WebSocket
-upgrade automatically, so the dashboard can be served from any origin the
-#162 allowlist accepts, without a header-injecting proxy.
+upgrade automatically, so the dashboard can be served from any origin that the #162
+allowlist accepts, without a header-injecting proxy.
 
 - **Dashboard and WebSocket:** covered from any allowed origin, including a
   built UI on a remote host.
