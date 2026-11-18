@@ -1,7 +1,7 @@
 # ADR-045: Authentication for non-webhook API routes
 
-**Date:** 2026-11-18 (proposed; set to the acceptance date when accepted)
-**Status:** Proposed
+**Date:** 2026-11-18
+**Status:** Accepted (2026-11-18, decided by the owner)
 **Related:** lhpaul/helm#160 (this decision), lhpaul/helm#159 (loopback bind,
 `HELM_API_HOST`), lhpaul/helm#162 (cross-origin guard, `HELM_ALLOWED_ORIGINS`),
 ADR-031 (API HTTP error conventions)
@@ -138,27 +138,38 @@ operator API stays on `127.0.0.1:3001`.
   authenticated, and exposing the operator API on a LAN with
   `HELM_API_HOST` stays open. It is network segmentation, not authentication.
 
-## Proposed decision
+## Decision
 
-**Option A**, with option B documented as defense in depth and option C left
-as a follow-up when a dashboard served outside the local dev server exists.
+**Option A** is the base control. Option B is kept as defense in depth (see
+the interim mitigation below) and option C is a later follow-up, for when a
+dashboard served outside the local dev server exists. The owner settled the
+open questions of the proposal on 2026-11-18; the answers are recorded in
+"Owner decisions" below and are part of this decision.
 
-- `HELM_API_TOKEN` (shared operator token) protects every `/api/*` route
-  except `/api/webhooks/github` and `/api/webhooks/linear`, plus the `/ws`
-  upgrade. Reads are protected too: they expose item, job and product data.
-- `GET /health` stays public and unchanged.
+- `HELM_API_TOKEN` (one shared operator token) protects every `/api/*` route
+  and the `/ws` upgrade, reads included. The only exceptions are the signed
+  webhook routes under `/api/webhooks/*` (today exactly
+  `/api/webhooks/github` and `/api/webhooks/linear`) and `GET /health`.
+- `GET /health` stays public and unchanged. The webhooks keep their signature
+  checks and need no token.
 - The middleware runs after the #162 origin guard and before the routers; it
   does not replace the guard (the guard still blocks a browser on a foreign
   origin that somehow holds a valid token or cookie in the future).
-- **Fail closed** (see open question 1): when `HELM_API_TOKEN` is not set,
-  protected routes answer `401` and the API logs a startup error that names
-  the variable. An explicit `HELM_API_AUTH=disabled` keeps today's behavior
-  for a single-user dev machine and logs a startup warning on every boot.
-- Tokens shorter than 32 characters are rejected at startup with an error
-  (the API still starts so webhooks keep flowing; protected routes answer
-  `401`).
+- **Fail closed:** when `HELM_API_TOKEN` is unset or blank, protected routes
+  answer `401` and the API logs a startup error that names the variable. The
+  API still starts, so webhooks and `/health` keep working.
+- **Explicit opt-out:** `HELM_API_AUTH=disabled` turns the check off and
+  logs a startup warning on every boot. It exists for a single-user dev
+  machine and for rollback, under the precondition in "Rollback" below.
+- Tokens shorter than 32 characters count as missing: startup error, API
+  starts, protected routes answer `401`.
 - Rotation: change the value and restart the API (and `pnpm dev` for the
-  proxy). No multi-token support in the first version (open question 3).
+  proxy). Only one token is accepted at a time.
+- Secrets wiring: the implementation adds `HELM_API_TOKEN` (and documents
+  `HELM_API_AUTH`) in the committed `apps/api/.env.example`, both in the
+  variables section and as an `op://<vault>/<item>/<field>` reference line in
+  every product input block it shows, which are the `sync-env` inputs the
+  repo declares. Only names, placeholders and docs: no values.
 
 ### Why A
 
@@ -170,85 +181,98 @@ as a follow-up when a dashboard served outside the local dev server exists.
 - B and D depend on per-instance configuration Helm cannot verify; C costs
   more than the current UI justifies and can be added later on top of A.
 
+## Owner decisions (2026-11-18)
+
+These replace the open questions of the proposal.
+
+1. **Option:** A as the base, B as defense in depth, C later, as
+   recommended.
+2. **Missing token:** fail closed. With no valid token configured, protected
+   routes answer `401`. The only way to run without authentication is the
+   explicit opt-out `HELM_API_AUTH=disabled`.
+3. **Scope:** reads are protected too. Every `/api/*` route and `/ws`
+   require the token, except `/api/webhooks/*` and `/health`.
+4. **Tokens:** one token. No secondary token for gapless rotation; a
+   rotation restarts the API and the dev proxy. A second accepted token can
+   still be added later without breaking changes if the need appears.
+5. **Secrets wiring:** the implementation updates `apps/api/.env.example`
+   and the `sync-env` input blocks it declares, with variable names,
+   `op://` placeholders and docs only. It never writes values, never runs
+   the secrets manager CLI or `sync-env`, and never reads real `.env`
+   files. Storing the actual token in the secrets manager and in the private
+   per-product inputs stays with the operator.
+6. **Interim mitigation:** see the next section.
+
+## Interim mitigation (decided)
+
+Until the implementation ships and is configured, the operator restricts the
+public ingress of the reference production layout, at the provider and by
+hand, so that only `/api/webhooks/*` and `/health` are reachable from the
+internet. This is option B applied as an interim control. It is an operator
+change outside the Helm repos, so no Helm code or config in these repos
+changes for it, and it stays in place after the token ships as defense in
+depth. It does not protect against local processes on the host; only the
+token does.
+
 ## Impact on an already deployed instance
 
 | Who | Change needed |
 | --- | --- |
-| Operator of a running instance | Generate a token (for example `openssl rand -hex 32`), store it in the secrets manager, add it to the product's `sync-env` input, regenerate `apps/api/.env`, restart the API. |
+| Operator of a running instance | Generate a token (for example `openssl rand -hex 32`), store it in the secrets manager, add the `HELM_API_TOKEN` reference to the product's private `sync-env` input (following the updated `.env.example` block), regenerate `apps/api/.env`, restart the API. |
 | Dashboard users | Export `HELM_API_TOKEN` in the shell that runs `pnpm dev` (Turbo passes it through), as with `HELM_API_HOST`. |
-| `curl`, scripts, smoke checks | Add `-H "Authorization: Bearer $HELM_API_TOKEN"` to every `/api/*` call except webhooks. |
+| `curl`, scripts, smoke checks | Add `-H "Authorization: Bearer $HELM_API_TOKEN"` to every `/api/*` call except webhooks, reads included. |
 | GitHub and Linear webhooks | None. |
 | Uptime watchdogs on `/health` | None. |
-| Tunnel or proxy | None required. Recommended: also restrict the public hostname to `/api/webhooks/*` and `/health` (option B as defense in depth). |
+| Tunnel or proxy | Already restricted to `/api/webhooks/*` and `/health` by the interim mitigation; keep that rule. |
 
-Backward compatibility: with fail closed, updating without setting the token
-makes every protected route answer `401` (the dashboard shows errors, operator
-`curl` fails), while webhooks keep advancing items. The CHANGELOG
-`[Unreleased]` → Security entry must say this, and the release notes must
-list the steps above.
+Backward compatibility: because the API fails closed, updating without
+setting the token makes every protected route answer `401` (the dashboard
+shows errors, operator `curl` fails), while webhooks keep advancing items.
+The CHANGELOG `[Unreleased]` → Security entry must say this, and the release
+notes must list the steps above.
 
 Rollback: setting `HELM_API_AUTH=disabled` or reverting the release reopens
 every operator read and write to any client that reaches the API. On an
 instance with a public ingress (the reference production layout), **first**
-restrict the ingress to `/api/webhooks/*` and `/health` (or put an
-authenticated proxy in front of it), confirm from outside that other `/api/*`
-paths are blocked, and only then disable auth or revert. On a machine with no
-ingress and no `HELM_API_HOST` override, the rollback only reopens the API to
-local processes, as before this change. Prefer fixing the token (set it,
-restart) over rolling back.
-
-**Interim mitigation until the implementation ships** (operator-side, no
-Helm change): limit the public ingress to `/api/webhooks/*` and `/health`.
-
-## Open questions for LH
-
-1. **Fail closed or opt-in?** Proposed: fail closed with the explicit
-   `HELM_API_AUTH=disabled` escape hatch. The alternative (auth only when
-   `HELM_API_TOKEN` is set, warning otherwise) avoids breaking any update but
-   leaves every instance that misses the release note open, including the
-   production layout with a public tunnel.
-2. **Should reads be protected too?** Proposed: yes. The alternative is to
-   protect only writes and `/ws`, which keeps read-only smoke checks
-   unchanged but leaves item history, jobs and product config readable by
-   any caller that reaches the API.
-3. **One token or several?** Proposed: one token in the first version. Two
-   accepted tokens (`HELM_API_TOKEN` plus a `HELM_API_TOKEN_PREVIOUS`) would
-   allow rotation without a gap; it can be added later without breaking
-   changes.
-4. **Secrets wiring.** Adding the token to `.env.example` and the `sync-env`
-   inputs touches secrets files and scripts. Proposed: the implementation PR
-   only documents the variable (AGENT.md, `docs/local-dev.md`, CHANGELOG) and
-   LH adds it to the secrets manager and the private `sync-env` inputs. Should
-   the implementation also update `.env.example` (comment only, no value)?
-5. **Interim mitigation.** Should the operator restrict the public ingress to
-   `/api/webhooks/*` and `/health` now, before the implementation ships?
-   That is an operator change outside the Helm repos and is not part of this
-   decision.
+confirm from outside that the ingress only serves `/api/webhooks/*` and
+`/health` (the interim mitigation) or that an authenticated proxy is in front
+of it, and only then disable auth or revert. On a machine with no ingress and
+no `HELM_API_HOST` override, the rollback only reopens the API to local
+processes, as before this change. Prefer fixing the token (set it, restart)
+over rolling back.
 
 ## Consequences
 
-- Positive: every non-webhook caller has to prove it holds the operator
-  token, whether it reaches the API from loopback, a LAN bind or the public
-  tunnel. The dashboard keeps working through the dev proxy without code
-  changes in the SPA.
+- Positive: every non-webhook caller, reads included, has to prove it holds
+  the operator token, whether it reaches the API from loopback, a LAN bind
+  or the public tunnel. A missing token can no longer leave an instance open
+  by accident. The dashboard keeps working through the dev proxy without
+  code changes in the SPA. The ingress restriction already limits the
+  internet exposure before the code ships.
 - Negative: one shared secret, no per-user identity or audit trail; every
-  runbook command and operator script changes; one more secret to rotate; an
-  update that skips the release note breaks the dashboard and operator
+  runbook command and operator script changes, including read-only smoke
+  checks; one more secret to rotate, and each rotation has a short gap
+  (restart of the API and the dev proxy) because only one token is accepted;
+  an update that skips the release note breaks the dashboard and operator
   `curl` until the token is set.
 - Neutral: webhooks, `/health`, the #159 bind and the #162 origin guard do
   not change.
 
 ## Alternatives considered
 
-Options B, C and D above. B is kept as recommended defense in depth; C is a
-possible follow-up on top of A; D is not pursued because it does not
-authenticate anyone.
+Options B, C and D above. B is kept as defense in depth and already applied
+as the interim mitigation; C is a possible follow-up on top of A; D is not
+pursued because it does not authenticate anyone. Opt-in authentication (only
+when the token is set), protecting only writes and `/ws`, and a second
+rotation token were considered in the proposal and not chosen (see "Owner
+decisions").
 
 ## Revisit when
 
 - Helm ships a dashboard served outside the local Vite dev server, or more
   than one human operator needs separate identities or an audit trail
   (consider option C or per-user tokens).
+- Token rotation gaps become a problem (consider a second accepted token).
 - Helm gets a client that cannot send headers (for example a browser
   `EventSource`).
 - The deployment model moves to a managed host where an identity-aware proxy
