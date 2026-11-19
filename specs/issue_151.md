@@ -122,7 +122,13 @@ reader can see how complete a number is:
   "scope": { "productSlug": "…", "externalId": "…", "from": "…", "to": "…" },
   "sessions": 14,
   "durationMs": 1234567,
-  "tokens": { "input": 0, "output": 0, "cacheRead": 0, "cacheCreation": 0, "reasoning": 0, "sessionsWithTokens": 11 },
+  "tokens": {
+    "input": { "total": 0, "sessionsReported": 11 },
+    "output": { "total": 0, "sessionsReported": 11 },
+    "cacheRead": { "total": 0, "sessionsReported": 11 },
+    "cacheCreation": { "total": 0, "sessionsReported": 6 },
+    "reasoning": { "total": 0, "sessionsReported": 6 }
+  },
   "costUsd": { "total": 0.0, "sessionsWithCost": 6, "sessionsUnknown": 8 },
   "reviewRounds": 3,
   "jobsInterrupted": 0,
@@ -180,7 +186,7 @@ Each criterion is covered by an automated test.
    derived stage; one fan-out dispatch yields one record per reviewer plus
    adjudicator and remediator sessions as they run.
 5. **Aggregate by item and stage.** Sums are over known values; the response
-   includes `sessionsWithCost`, `sessionsUnknown` and `sessionsWithTokens`;
+   includes `sessionsWithCost`, `sessionsUnknown` and, for **each** token counter, its own `sessionsReported` (runtimes may report some counters and leave others `null`, e.g. Codex has no cache-creation count, so a counter's `total` is only meaningful with its denominator);
    an all-Codex item reports `costUsd.total: 0` with `sessionsUnknown` equal
    to its session count and `total` clearly accompanied by that count (never
    presented as measured zero cost).

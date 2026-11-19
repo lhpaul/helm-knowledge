@@ -85,7 +85,7 @@
 7. **Aggregation service** (`apps/api/src/services/usage.ts`): pure function
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
-   `sessionsWithTokens`, `jobsNotInstrumented`, `byStage`,
+   per-counter token `sessionsReported`, `jobsNotInstrumented`, `byStage`,
    `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, `jobsWithCaptureGaps` (jobs whose `usageCaptureFailures` > 0), filters by period (session `startedAt` for session data, job
    `startedAt` for job-level data such as rounds), and `groupBy`.
 8. **API** (`apps/api/src/routes/usage.ts`, registered in `app.ts`): the two
@@ -112,7 +112,7 @@
   concurrent final `updateJob`) keep all N records and the final status;
   `usage` persisted per session, legacy job (no `usage`)
   still reads, orphaned job keeps finished sessions (AC 8).
-- `usage.test.ts` (service): all-Codex item, mixed runtimes, period and
+- `usage.test.ts` (service): all-Codex item, mixed runtimes, partially reported token counters (each counter keeps its own `sessionsReported`), period and
   `groupBy` (including a review job whose sessions straddle `from`/`to`: rounds
   follow the job's `startedAt`, sessions their own), review rounds, legacy
   jobs (no `usage` field) counted in `jobsNotInstrumented` while a new job with
