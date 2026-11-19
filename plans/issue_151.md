@@ -77,7 +77,7 @@
    instrumentation marker: absence of `usage` means a pre-change (legacy) job
    and only then counts as `jobsNotInstrumented`; an instrumented job with no
    completed session, or whose first capture failed, has `usage: []` and is
-   not legacy. 
+   not legacy.
 7. **Aggregation service** (`apps/api/src/services/usage.ts`): pure function
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
@@ -100,7 +100,12 @@
 ## Tests
 
 - `claude-code.test.ts` / `codex.test.ts`: fixtures → tokens, cost and
-  `costSource`; stream without result → unknown (AC 1–3).
+  `costSource`; stream without result, runtime error, cancel and timeout → `null`
+  tokens/cost with measured duration and an unchanged dispatch outcome (AC 1–3).
+- `usage-privacy.test.ts`: a persisted record contains only the allowed fields
+  (the schema in the spec) and none of the prompt, final output, working
+  directory path or credential values, using a session whose prompt, output
+  and env carry sentinel strings (AC 11).
 - `usage-recording.test.ts`: decorator emits one record per session, sink
   failure does not fail the session and bumps `usageCaptureFailures`, job-specialist→stage table, and early spec/plan review sessions attributed
   to `spec`/`plan` rather than `review` (AC 3, 4, 9).
