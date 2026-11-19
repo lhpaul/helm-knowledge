@@ -197,8 +197,13 @@ Each criterion is covered by an automated test.
    and stop rules behave identically with usage capture on; a failure while
    recording usage is logged (metadata only), never fails the dispatch, and is
    made visible: the job's `usageCaptureFailures` counter is incremented
-   (best effort) and the aggregate reports `jobsWithCaptureGaps`, so an
-   incomplete total is never presented as complete.
+   (best effort) and the aggregate reports `jobsWithCaptureGaps`, so a
+   known-incomplete total is flagged. The guarantee is qualified: if the usage
+   write and the counter update both fail (for example the data directory is
+   unwritable), nothing durable records the loss; only the log does, and the
+   aggregate can only report what the job files hold (the docs say so). A
+   test covers this double-failure case and asserts the dispatch still
+   succeeds.
 10. **Auth.** The usage endpoints return `401` without the operator token
     (ADR-045 middleware) and respond normally with it.
 11. **No sensitive data.** Records hold no prompts, outputs, file paths,

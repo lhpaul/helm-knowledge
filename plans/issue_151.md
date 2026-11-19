@@ -110,7 +110,7 @@
   `groupBy` (including a review job whose sessions straddle `from`/`to`: rounds
   follow the job's `startedAt`, sessions their own), review rounds, legacy
   jobs counted in `jobsNotInstrumented`, a job with one recorded and one failed
-  session counted in `jobsWithCaptureGaps`, empty scope (AC 5–7).
+  session counted in `jobsWithCaptureGaps`, and a double failure (record and counter both fail) leaving the dispatch successful with only a log line, empty scope (AC 5–7).
 - `usage-route.test.ts`: `400` on bad input, `401` without token, `200` with
   it (AC 6, 10).
 - Dispatch regression: existing dispatcher and scheduler tests unchanged and
