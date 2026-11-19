@@ -81,7 +81,8 @@ mapping can change later without losing data (decision 2).
 ### Review rounds
 
 Rounds are counted per item as the sum of `DispatchResult.cyclesCompleted`
-over its review jobs, and recorded on each job's rollup. The ADR-042
+over its review-stage jobs (`reviewer-fanout`; cycles of early spec/plan
+review loops are not counted), and recorded on each job's rollup. The ADR-042
 cumulative ledger already counts cycles for budget purposes; this feature
 reads the job-level value and does not change the loop. A per-session `cycle`
 number is optional and not required for v1.

@@ -82,7 +82,9 @@
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
    per-counter token `sessionsReported`, `jobsNotInstrumented`, `byStage`,
-   `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, `jobsWithCaptureGaps` (jobs whose `usageCaptureFailures` > 0), filters by period (session `startedAt` for session data, job
+   `reviewRounds` from `Job.result.cyclesCompleted` of **review-stage jobs only**
+   (`reviewer-fanout`; early spec/plan review loops also report cycles but
+   are not counted as item review rounds), `jobsInterrupted`, `jobsWithCaptureGaps` (jobs whose `usageCaptureFailures` > 0), filters by period (session `startedAt` for session data, job
    `startedAt` for job-level data such as rounds), and `groupBy`.
 8. **API** (`apps/api/src/routes/usage.ts`, registered in `app.ts`): the two
    `GET` routes in the spec, Zod validation (`from`/`to` ISO, `groupBy`
@@ -116,7 +118,8 @@
   still reads, orphaned job keeps finished sessions (AC 8).
 - `usage.test.ts` (service): all-Codex item, mixed runtimes, partially reported token counters (each counter keeps its own `sessionsReported`), period and
   `groupBy` (including a review job whose sessions straddle `from`/`to`: rounds
-  follow the job's `startedAt`, sessions their own), review rounds, legacy
+  follow the job's `startedAt`, sessions their own), review rounds (early spec/plan review jobs with `cyclesCompleted` do not
+  add to `reviewRounds`), legacy
   jobs (no `usage` field) counted in `jobsNotInstrumented` while a new job with
   `usage: []` is not, a job with one recorded and one failed
   session counted in `jobsWithCaptureGaps`, and a double failure (record and counter both fail) leaving the dispatch successful with only a log line, empty scope (AC 5–7).
