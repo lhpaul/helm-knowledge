@@ -31,16 +31,19 @@
    (`{ tokens: {input, output, cacheRead, cacheCreation, reasoning} with
    nullable members, costUsd: number | null, costSource: 'reported' |
    'unknown', model?: string }`). Keep `totalCostUsd: number` for existing
-   callers (sum of known costs) so no specialist signature changes.
+   callers so no specialist signature changes; document it as "sum of known
+   costs, `0` when none is known, not authoritative". Only `usage` carries the
+   unknown marker. Consumers of `totalCostUsd` (`DispatchResult.costUsd`,
+   review-loop totals) are not changed and the usage aggregate never reads
+   them.
 2. **Claude Code runtime** (`runtimes/claude-code.ts`): read `usage` and
    `modelUsage` from the `result` message; `costUsd` from `total_cost_usd`
    (`reported`). When no `result` message arrives, `costUsd: null`,
    `costSource: 'unknown'` instead of `0`.
 3. **Codex runtime** (`runtimes/codex.ts`): parse `turn.completed.usage` into
-   tokens (sum across turns if several); `costUsd: null`, `unknown`. Stop
-   presenting `0` as a cost for unknown cases while keeping
-   `totalCostUsd: 0` for compatibility (the aggregate must read `usage`, not
-   `totalCostUsd`). Verify against both fixtures (`exec-success`,
+   tokens (sum across turns if several); `usage.costUsd: null`, `unknown`.
+   `totalCostUsd` stays `0` for compatibility; a test asserts the aggregate
+   ignores it. Verify against both fixtures (`exec-success`,
    `exec-success-0.136`).
 4. **Mock runtime** (`runtimes/mock.ts`): report `reported` cost when the
    script gives `costUsd`, otherwise `unknown`, so tests can exercise both.
@@ -54,14 +57,17 @@
 6. **Persistence** (`apps/api/src/services/job-store.ts`, `dispatch-scheduler.ts`,
    `runtime-factory.ts`): wrap the runtime in the scheduler where the job is
    created, with a sink that appends the record to the job (one atomic
-   `updateJob` per session, so an orphaned job keeps finished sessions).
+   `updateJob` per session, so an orphaned job keeps finished sessions). A
+   session in flight when the server dies leaves no record (it never reaches
+   `wait()`); `reconcileOrphanedJobs` is unchanged and the aggregate counts
+   those jobs as `jobsInterrupted` from their existing `orphaned` error.
    Add the optional `usage` field to `Job`. If ADR-046 chooses B, replace the
    sink with an `appendJsonl` writer and add a `UsageStore` reader instead.
 7. **Aggregation service** (`apps/api/src/services/usage.ts`): pure function
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
    `sessionsWithTokens`, `sessionsNotInstrumented`, `byStage`,
-   `reviewRounds` from `Job.result.cyclesCompleted`, filters by period on
+   `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, filters by period on
    `startedAt`, and `groupBy`.
 8. **API** (`apps/api/src/routes/usage.ts`, registered in `app.ts`): the two
    `GET` routes in the spec, Zod validation (`from`/`to` ISO, `groupBy`

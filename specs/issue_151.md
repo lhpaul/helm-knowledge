@@ -40,7 +40,8 @@ Gaps that matter:
    only approximate (one job = one specialist, but the review loop mixes
    reviewers, adjudication and remediation).
 5. A job that dies with the server (`orphaned: server restarted during
-   execution`) loses everything it had spent.
+   execution`) loses everything it had spent (today only the final
+   `DispatchResult` is written, at the end of the job).
 6. Human wait time (PR sits unreviewed) is not Helm's to measure and is out
    of scope; "cost" here means agent cost.
 
@@ -86,10 +87,20 @@ number is optional and not required for v1.
   measured zero.
 - Codex: tokens are `reported` from `turn.completed.usage`; `costUsd` is
   `null` and `costSource` is `unknown` (subscription billing exposes no USD).
-  The runtime stops returning `totalCostUsd: 0` for this case.
+  The runtime result gains `usage` with `costUsd: null` for this case.
+  `AgentResult.totalCostUsd` (and `DispatchResult.costUsd`) stay numeric for
+  existing callers and are documented as "sum of known costs; `0` when none is
+  known, not authoritative"; **no usage aggregate, endpoint or script reads
+  them**, only `usage.costUsd`/`costSource`.
 - Any session that ended without the runtime's final usage message (crash,
   timeout, cancel before result, orphaned job): tokens and cost `null`,
   duration measured.
+- A session interrupted by a server restart never reaches `wait()`, so it
+  leaves **no record** (nothing can write after the process dies). Records of
+  sessions that finished before the restart are kept (they are flushed as each
+  session ends). The gap is made visible, not hidden: the aggregate reports
+  `jobsInterrupted`, the count of jobs closed as `orphaned`, whose in-flight
+  session spend is unknown.
 - No USD is estimated from tokens in v1 (the runtime deliberately has no
   per-model pricing table). An estimate is an open question (5) and, if
   adopted, would be a separate field `estimatedCostUsd` that is never mixed
@@ -110,6 +121,7 @@ reader can see how complete a number is:
   "tokens": { "input": 0, "output": 0, "cacheRead": 0, "cacheCreation": 0, "reasoning": 0, "sessionsWithTokens": 11 },
   "costUsd": { "total": 0.0, "sessionsWithCost": 6, "sessionsUnknown": 8 },
   "reviewRounds": 3,
+  "jobsInterrupted": 0,
   "byStage": { "spec": {…}, "plan": {…}, "code": {…}, "review": {…} }
 }
 ```
@@ -150,11 +162,14 @@ Each criterion is covered by an automated test.
    duration (fixture `write-success.jsonl`).
 2. **Capture, Codex.** A Codex session yields tokens from
    `turn.completed.usage` and `costUsd: null`, `costSource: unknown`
-   (fixtures `exec-success*.jsonl`). `AgentResult` no longer reports `0` for
-   unknown cost.
-3. **Failure paths.** Error, cancel, timeout and no-result sessions produce a
-   record with `null` tokens and cost and a measured duration; the dispatch
-   outcome and status are unchanged.
+   (fixtures `exec-success*.jsonl`). `AgentResult.usage` reports unknown
+   cost as `null`/`unknown`; the legacy `totalCostUsd` stays `0` for
+   compatibility and is never used by the aggregate.
+3. **Failure paths.** Error, cancel, timeout and no-result sessions that
+   reach `wait()` produce a record with `null` tokens and cost and a measured
+   duration; the dispatch outcome and status are unchanged. A job closed as
+   orphaned keeps the records of its finished sessions and is counted in
+   `jobsInterrupted`; the interrupted session itself has no record.
 4. **Association.** Every record carries product, item, job, specialist and
    derived stage; one fan-out dispatch yields one record per reviewer plus
    adjudicator and remediator sessions as they run.
@@ -176,8 +191,9 @@ Each criterion is covered by an automated test.
    recording usage is logged (metadata only) and never fails the dispatch.
 10. **Auth.** The usage endpoints return `401` without the operator token
     (ADR-045 middleware) and respond normally with it.
-11. **No sensitive data.** Records hold no prompts, outputs, paths, tokens
-    or secrets.
+11. **No sensitive data.** Records hold no prompts, outputs, file paths,
+    credentials, access tokens or secrets. Usage token *counts* (the numbers
+    in `tokens`) are expected and allowed.
 12. **Repo checks.** `pnpm lint` and `pnpm test` pass; no workflow, deploy or
     dependency changes.
 
