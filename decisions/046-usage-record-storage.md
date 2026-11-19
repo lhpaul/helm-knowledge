@@ -21,22 +21,24 @@ scans that directory to list jobs per item.
 ## Decision (proposed)
 
 **Option A: store the session records inside the job record** as a new
-optional `usage` array, written together with the job's final update, and
-aggregate by reading jobs.
+`usage` array, initialized as `[]` when the job is created and appended to
+as each session ends (not only with the final job update), and aggregate by
+reading jobs.
 
 ## Options
 
 ### A. `usage` array on the job record (recommended)
 
 - Pros: no new store, path or format; atomic with the job write; item and
-  specialist already on the record; additive optional field, so no migration
-  and old jobs stay valid; smallest change.
+  specialist already on the record; additive field, so no migration and old
+  jobs stay valid (a job without `usage` is a pre-change job); smallest change.
 - Cons: a job killed with the server (`orphaned`) loses what it had spent
   unless records are flushed during the run; a period query scans every job
   file (same as today's per-item listing; fine at this scale, would need an
   index later); job files grow by a few hundred bytes per session.
-- Mitigation: flush records to the job as sessions end (one atomic update per
-  session), so an orphaned job keeps the sessions that finished.
+- Mitigation: records are flushed to the job as each session ends (one
+  serialized update per session), so an orphaned job keeps the sessions that
+  finished.
 
 ### B. Separate append-only ledger (`$HELM_DATA_DIR/usage/<productSlug>/<YYYY-MM>.jsonl`)
 

@@ -74,7 +74,13 @@
    session in flight when the server dies leaves no record (it never reaches
    `wait()`); `reconcileOrphanedJobs` is unchanged and the aggregate counts
    those jobs as `jobsInterrupted` from their existing `orphaned` error.
-   Add the optional `usage` field to `Job`. If ADR-046 chooses B, replace the
+   Add the `usage` field (and `usageCaptureFailures`) to `Job` as optional in the
+   type, but `createJob`/`createJobIfNoRunning` always initialize `usage: []`
+   and `usageCaptureFailures: 0` on new jobs. That is the durable
+   instrumentation marker: absence of `usage` means a pre-change (legacy) job
+   and only then counts as `jobsNotInstrumented`; an instrumented job with no
+   completed session, or whose first capture failed, has `usage: []` and is
+   not legacy. If ADR-046 chooses B, replace the
    sink with an `appendJsonl` writer and add a `UsageStore` reader instead.
 7. **Aggregation service** (`apps/api/src/services/usage.ts`): pure function
    over jobs (and usage records) returning the aggregate shape in the spec:
@@ -109,7 +115,8 @@
 - `usage.test.ts` (service): all-Codex item, mixed runtimes, period and
   `groupBy` (including a review job whose sessions straddle `from`/`to`: rounds
   follow the job's `startedAt`, sessions their own), review rounds, legacy
-  jobs counted in `jobsNotInstrumented`, a job with one recorded and one failed
+  jobs (no `usage` field) counted in `jobsNotInstrumented` while a new job with
+  `usage: []` is not, a job with one recorded and one failed
   session counted in `jobsWithCaptureGaps`, and a double failure (record and counter both fail) leaving the dispatch successful with only a log line, empty scope (AC 5–7).
 - `usage-route.test.ts`: `400` on bad input, `401` without token, `200` with
   it (AC 6, 10).
