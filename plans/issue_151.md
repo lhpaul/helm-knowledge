@@ -1,9 +1,8 @@
 # issue_151 — Implementation Plan
 
-> **Status: draft, phase 1.** Implements [specs/issue_151.md](../specs/issue_151.md)
-> under [ADR-046](../decisions/046-usage-record-storage.md) (Proposed). Nothing
-> is implemented yet; start phase 2 only after the owner accepts ADR-046 and
-> answers the spec's open questions.
+> **Status: ready.** Implements [specs/issue_151.md](../specs/issue_151.md)
+> under [ADR-046](../decisions/046-usage-record-storage.md) (Accepted, option
+> A; the owner's decisions are in the spec). Nothing is implemented yet.
 
 ## Risk and deployment impact
 
@@ -12,10 +11,8 @@
   specialist spawn, so a mistake could affect all dispatches. It is not high:
   no auth, data migration, destructive operation or behaviour change to the
   state machine.
-- **Data migration: none.** Option A adds an optional field to new job files;
-  old jobs stay valid and are reported as not instrumented. If ADR-046 picks
-  option B, a new `usage/` directory is created lazily on first write (no
-  migration, but a new path to include in backups).
+- **Data migration: none.** ADR-046 (option A) adds a field to new job files;
+  old jobs stay valid and are reported as not instrumented. No new directory.
 - **New dependencies: none.** Uses `@helm/storage`, Hono and Zod already in
   the repo. No vitest or other dependency update.
 - **Configuration on a deployed instance: none.** No new environment
@@ -80,8 +77,7 @@
    instrumentation marker: absence of `usage` means a pre-change (legacy) job
    and only then counts as `jobsNotInstrumented`; an instrumented job with no
    completed session, or whose first capture failed, has `usage: []` and is
-   not legacy. If ADR-046 chooses B, replace the
-   sink with an `appendJsonl` writer and add a `UsageStore` reader instead.
+   not legacy. 
 7. **Aggregation service** (`apps/api/src/services/usage.ts`): pure function
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
@@ -147,6 +143,6 @@ small docs PR in helm-knowledge.
 
 ## Stop conditions for phase 2
 
-Stop and ask the owner if: ADR-046 is not accepted; a vitest or other
+Stop and ask the owner if: a vitest or other
 dependency update seems necessary; the runtime contract change forces edits
 in more than the runtimes and the scheduler wiring; or risk turns out high.

@@ -1,8 +1,8 @@
 # issue_151 — Specification
 
-> **Status: draft, phase 1 (spec and plan only).** Implementation in
-> `lhpaul/helm` waits for the owner's answers to "Open questions" and for
-> ADR-046 to be accepted. Priority: Low (agreed in #136).
+> **Status: ready.** The owner answered the open questions (see
+> "Decisions"); ADR-046 is Accepted (option A). Implementation in
+> `lhpaul/helm` can start. Priority: Low (agreed in #136).
 
 ## Context
 
@@ -75,7 +75,7 @@ reviewer, adjudicator and remediator sessions of an early spec or plan
 review loop count as `spec`/`plan` (they reuse the same reviewer specialists
 as the code review) and code remediation inside the code review loop counts
 as `review`. The session's raw `specialistId` is kept in every record so the
-mapping can change later without losing data (see open question 2).
+mapping can change later without losing data (decision 2).
 
 ### Review rounds
 
@@ -106,8 +106,8 @@ number is optional and not required for v1.
   `jobsInterrupted`, the count of jobs closed as `orphaned`, whose in-flight
   session spend is unknown.
 - No USD is estimated from tokens in v1 (the runtime deliberately has no
-  per-model pricing table). An estimate is an open question (5) and, if
-  adopted, would be a separate field `estimatedCostUsd` that is never mixed
+  per-model pricing table). A USD estimate from tokens is a follow-up outside v1 (decision 5); if
+  built, it would be a separate, labelled field `estimatedCostUsd` that is never mixed
   into `costUsd`.
 - The external reviewer is outside Helm's runtimes: reported as a fixed
   `external-review: not measured` note in the aggregate, not as a zero.
@@ -144,11 +144,10 @@ misleading total.
 
 ### Where it is stored
 
-Decision pending: [ADR-046](../decisions/046-usage-record-storage.md)
-(Proposed). Recommended: add the per-session records to the job record
-(`data/jobs/<jobId>.json`, new optional `usage` array) and aggregate by
-reading jobs. No new store, no migration, no dependency. The alternative is a
-separate append-only ledger under `$HELM_DATA_DIR/usage/`.
+Decided: [ADR-046](../decisions/046-usage-record-storage.md) (Accepted,
+option A). Per-session records go in the job record
+(`data/jobs/<jobId>.json`, new `usage` array, initialized empty on new jobs) and aggregate by
+reading jobs. No new store, no migration, no dependency.
 
 ### How it is queried
 
@@ -220,26 +219,21 @@ Each criterion is covered by an automated test.
 
 ## Out of Scope
 
-- Estimating USD from tokens or maintaining a pricing table (open question 5).
+- Estimating USD from tokens or maintaining a pricing table (decision 5).
 - Cost of the external reviewer and any human time.
 - Dashboard UI, alerts, budgets or enforcement; ADR-042 limits are unchanged.
 - Backfilling cost for jobs that ran before this change.
 - Changing model or runtime selection.
 
-## Open questions for the owner
+## Decisions
 
-1. **Storage (ADR-046).** Job record (recommended) or separate usage ledger?
-   The ledger survives orphaned jobs and job pruning; the job record is
-   simpler.
-2. **Stage of code remediation inside the review loop.** Counted as `review`
-   (recommended: it is part of the loop's cost) or as `code`?
-3. **Is "unknown" good enough for Codex USD**, or do you want the
-   subscription's flat price allocated per item some other way (out of v1)?
-4. **Granularity.** Is per-session enough, or do you also want per-message
-   (turn) cost? Per-session is what both CLIs expose reliably.
-5. **Estimated USD from tokens** as a separate, clearly labelled field in a
-   follow-up, or never?
-6. **Retention.** Keep usage for the life of `data/` (recommended) or add a
-   cap?
-7. **Review-round source.** Is job-level `cyclesCompleted` acceptable, or do
-   you need the cumulative ledger's count (ADR-042) as the headline number?
+Answered by the owner:
+
+1. **Storage:** in the job record (ADR-046, option A, Accepted).
+2. **Code remediation inside the review loop** counts as `review`.
+3. **Codex USD** stays unknown (`costUsd: null`, `costSource: unknown`).
+4. **Granularity:** per session.
+5. **Estimated USD from tokens:** later, as a separate labelled field
+   (`estimatedCostUsd`); follow-up outside v1.
+6. **Retention:** same as `data/`, no cap.
+7. **Review rounds:** from the job's `cyclesCompleted`.

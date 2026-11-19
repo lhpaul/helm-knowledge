@@ -1,7 +1,7 @@
 # ADR-046: Where per-item usage records are stored
 
 **Date:** 2026-11-19
-**Status:** Proposed
+**Status:** Accepted (2026-11-19, decided by the owner: option A)
 **Related:** lhpaul/helm#151 (this decision), `specs/issue_151.md`,
 `plans/issue_151.md`, ADR-021 (Claude Code and Codex runtimes), ADR-042
 (cumulative review-loop budget), ADR-045 (API operator auth)
@@ -18,7 +18,7 @@ Jobs are already one JSON file per dispatch (`data/jobs/<jobId>.json`) with
 product, item, specialist, status and timestamps, and `JobStore` already
 scans that directory to list jobs per item.
 
-## Decision (proposed)
+## Decision
 
 **Option A: store the session records inside the job record** as a new
 `usage` array, initialized as `[]` when the job is created and appended to
@@ -66,7 +66,7 @@ reading jobs.
 - Positive: low risk, no deployment change, reversible by ignoring the field.
 - Negative: period aggregates are O(jobs); usage is coupled to job
   retention (there is no pruning today).
-- Neutral: the `Job` JSON shape gains one optional field; readers that
+- Neutral: the `Job` JSON shape gains new fields (`usage`, `usageCaptureFailures`); readers that
   ignore unknown fields are unaffected.
 
 ## Revisit when
@@ -74,4 +74,4 @@ reading jobs.
 - Jobs are pruned or archived, or the number of job files makes a period
   query slow (move to B or add an index).
 - A second consumer needs usage independent of jobs (billing export).
-- The owner wants usage to survive a lost `data/jobs/` directory.
+- The maintainer wants usage to survive a lost `data/jobs/` directory.
