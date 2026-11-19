@@ -127,6 +127,7 @@ reader can see how complete a number is:
   "reviewRounds": 3,
   "jobsInterrupted": 0,
   "jobsNotInstrumented": 0,
+  "jobsWithCaptureGaps": 0,
   "byStage": { "spec": {…}, "plan": {…}, "code": {…}, "review": {…} }
 }
 ```
@@ -194,7 +195,10 @@ Each criterion is covered by an automated test.
    fails on them. Their `cyclesCompleted` still counts toward `reviewRounds`.
 9. **No behaviour change.** Dispatch status, transitions, review-loop budget
    and stop rules behave identically with usage capture on; a failure while
-   recording usage is logged (metadata only) and never fails the dispatch.
+   recording usage is logged (metadata only), never fails the dispatch, and is
+   made visible: the job's `usageCaptureFailures` counter is incremented
+   (best effort) and the aggregate reports `jobsWithCaptureGaps`, so an
+   incomplete total is never presented as complete.
 10. **Auth.** The usage endpoints return `401` without the operator token
     (ADR-045 middleware) and respond normally with it.
 11. **No sensitive data.** Records hold no prompts, outputs, file paths,

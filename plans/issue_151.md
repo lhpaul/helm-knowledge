@@ -59,7 +59,7 @@
    function next to `STAGE_TO_SPECIALIST` in `dispatcher.ts`:
    spec-writer/spec-draft-reviewer → spec, plan-writer/plan-draft-reviewer →
    plan, implementer → code, reviewer-fanout → review), and stamps it on every
-   record along with the raw session `specialistId`. The sink failing is caught and logged (metadata only).
+   record along with the raw session `specialistId`. A failing sink is caught and logged (metadata only) and never fails the session; the decorator then also tries to increment `usageCaptureFailures` on the job (best effort, same serialized queue), so the loss is visible.
 6. **Persistence** (`apps/api/src/services/job-store.ts`, `dispatch-scheduler.ts`,
    `runtime-factory.ts`): wrap the runtime in the scheduler where the job is
    created, with a sink that appends the record to the job (one atomic
@@ -80,7 +80,7 @@
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
    `sessionsWithTokens`, `jobsNotInstrumented`, `byStage`,
-   `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, filters by period (session `startedAt` for session data, job
+   `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, `jobsWithCaptureGaps` (jobs whose `usageCaptureFailures` > 0), filters by period (session `startedAt` for session data, job
    `startedAt` for job-level data such as rounds), and `groupBy`.
 8. **API** (`apps/api/src/routes/usage.ts`, registered in `app.ts`): the two
    `GET` routes in the spec, Zod validation (`from`/`to` ISO, `groupBy`
@@ -100,7 +100,7 @@
 - `claude-code.test.ts` / `codex.test.ts`: fixtures → tokens, cost and
   `costSource`; stream without result → unknown (AC 1–3).
 - `usage-recording.test.ts`: decorator emits one record per session, sink
-  failure does not fail the session, job-specialist→stage table, and early spec/plan review sessions attributed
+  failure does not fail the session and bumps `usageCaptureFailures`, job-specialist→stage table, and early spec/plan review sessions attributed
   to `spec`/`plan` rather than `review` (AC 3, 4, 9).
 - `job-store.test.ts`: N simultaneous `appendUsage` calls (and one
   concurrent final `updateJob`) keep all N records and the final status;
@@ -109,7 +109,8 @@
 - `usage.test.ts` (service): all-Codex item, mixed runtimes, period and
   `groupBy` (including a review job whose sessions straddle `from`/`to`: rounds
   follow the job's `startedAt`, sessions their own), review rounds, legacy
-  jobs counted in `jobsNotInstrumented`, empty scope (AC 5–7).
+  jobs counted in `jobsNotInstrumented`, a job with one recorded and one failed
+  session counted in `jobsWithCaptureGaps`, empty scope (AC 5–7).
 - `usage-route.test.ts`: `400` on bad input, `401` without token, `200` with
   it (AC 6, 10).
 - Dispatch regression: existing dispatcher and scheduler tests unchanged and
