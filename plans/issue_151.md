@@ -54,8 +54,8 @@
    created per job with a recording context `{ jobId, stage }` where `stage`
    comes from the job's specialist (`stageForJobSpecialist(id)`, a pure
    function next to `STAGE_TO_SPECIALIST` in `dispatcher.ts`:
-   spec-writer/spec-draft-reviewer → spec, plan-writer/plan-draft-reviewer →
-   plan, implementer → code, reviewer-fanout → review), and stamps it on every
+   spec-writer/spec-draft-reviewer/spec-remediator → spec,
+   plan-writer/plan-draft-reviewer/plan-remediator → plan, implementer → code, reviewer-fanout → review), and stamps it on every
    record along with the raw session `specialistId`. A failing sink is caught and logged (metadata only) and never fails the session; the decorator then also tries to increment `usageCaptureFailures` on the job (best effort, same serialized queue), so the loss is visible.
 6. **Persistence** (`apps/api/src/services/job-store.ts`, `dispatch-scheduler.ts`,
    `runtime-factory.ts`): wrap the runtime in the scheduler where the job is
@@ -107,7 +107,8 @@
   directory path or credential values, using a session whose prompt, output
   and env carry sentinel strings (AC 11).
 - `usage-recording.test.ts`: decorator emits one record per session, sink
-  failure does not fail the session and bumps `usageCaptureFailures`, job-specialist→stage table, and early spec/plan review sessions attributed
+  failure does not fail the session and bumps `usageCaptureFailures`, job-specialist→stage table (every job specialist, including
+  `spec-remediator` and `plan-remediator`, has a defined stage), and early spec/plan review sessions attributed
   to `spec`/`plan` rather than `review` (AC 3, 4, 9).
 - `job-store.test.ts`: N simultaneous `appendUsage` calls (and one
   concurrent final `updateJob`) keep all N records and the final status;

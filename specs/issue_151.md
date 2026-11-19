@@ -67,9 +67,10 @@ existing per-job `DispatchResult` as a cross-check. A record has:
 | `costSource` | `reported` or `unknown` | runtime |
 
 Stage mapping (by the **job's** specialist, i.e. the dispatch that ran the
-session, not the session's own specialist): `spec` = jobs of `spec-writer`
-and `spec-draft-reviewer`; `plan` = jobs of `plan-writer` and
-`plan-draft-reviewer`; `code` = jobs of `implementer`; `review` = jobs of
+session, not the session's own specialist): `spec` = jobs of `spec-writer`,
+`spec-draft-reviewer` and the operator-triggered `spec-remediator`; `plan` =
+jobs of `plan-writer`, `plan-draft-reviewer` and the operator-triggered
+`plan-remediator`; `code` = jobs of `implementer`; `review` = jobs of
 `reviewer-fanout`. Every session in a job inherits the job's stage, so the
 reviewer, adjudicator and remediator sessions of an early spec or plan
 review loop count as `spec`/`plan` (they reuse the same reviewer specialists
