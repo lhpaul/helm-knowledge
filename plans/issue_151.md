@@ -57,7 +57,14 @@
 6. **Persistence** (`apps/api/src/services/job-store.ts`, `dispatch-scheduler.ts`,
    `runtime-factory.ts`): wrap the runtime in the scheduler where the job is
    created, with a sink that appends the record to the job (one atomic
-   `updateJob` per session, so an orphaned job keeps finished sessions). A
+   `JobStore.appendUsage(jobId, record)` per session, so an orphaned job
+   keeps finished sessions). `updateJob` is an unlocked read-modify-write, and
+   the three reviewers of a fan-out finish concurrently, so `appendUsage` and
+   `updateJob` must be serialized per job: a per-`jobId` in-memory promise
+   queue (the process is single-writer, as `_inflightKeys` already assumes)
+   that every write to a job file goes through, with `appendUsage` reading the
+   current file inside the queue and appending, so the final status update
+   cannot overwrite `usage` and two simultaneous appends cannot drop a record. A
    session in flight when the server dies leaves no record (it never reaches
    `wait()`); `reconcileOrphanedJobs` is unchanged and the aggregate counts
    those jobs as `jobsInterrupted` from their existing `orphaned` error.
@@ -89,7 +96,9 @@
 - `usage-recording.test.ts`: decorator emits one record per session, sink
   failure does not fail the session, specialist→stage mapping table (AC 3, 4,
   9).
-- `job-store.test.ts`: `usage` persisted per session, legacy job (no `usage`)
+- `job-store.test.ts`: N simultaneous `appendUsage` calls (and one
+  concurrent final `updateJob`) keep all N records and the final status;
+  `usage` persisted per session, legacy job (no `usage`)
   still reads, orphaned job keeps finished sessions (AC 8).
 - `usage.test.ts` (service): all-Codex item, mixed runtimes, period and
   `groupBy`, review rounds, empty scope (AC 5–7).
