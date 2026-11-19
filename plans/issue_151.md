@@ -73,9 +73,9 @@
 7. **Aggregation service** (`apps/api/src/services/usage.ts`): pure function
    over jobs (and usage records) returning the aggregate shape in the spec:
    sums over known values, `sessionsWithCost`, `sessionsUnknown`,
-   `sessionsWithTokens`, `sessionsNotInstrumented`, `byStage`,
-   `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, filters by period on
-   `startedAt`, and `groupBy`.
+   `sessionsWithTokens`, `jobsNotInstrumented`, `byStage`,
+   `reviewRounds` from `Job.result.cyclesCompleted`, `jobsInterrupted`, filters by period (session `startedAt` for session data, job
+   `startedAt` for job-level data such as rounds), and `groupBy`.
 8. **API** (`apps/api/src/routes/usage.ts`, registered in `app.ts`): the two
    `GET` routes in the spec, Zod validation (`from`/`to` ISO, `groupBy`
    enum), errors per ADR-031. They fall under `/api/*`, so the ADR-045
@@ -101,7 +101,9 @@
   `usage` persisted per session, legacy job (no `usage`)
   still reads, orphaned job keeps finished sessions (AC 8).
 - `usage.test.ts` (service): all-Codex item, mixed runtimes, period and
-  `groupBy`, review rounds, empty scope (AC 5–7).
+  `groupBy` (including a review job whose sessions straddle `from`/`to`: rounds
+  follow the job's `startedAt`, sessions their own), review rounds, legacy
+  jobs counted in `jobsNotInstrumented`, empty scope (AC 5–7).
 - `usage-route.test.ts`: `400` on bad input, `401` without token, `200` with
   it (AC 6, 10).
 - Dispatch regression: existing dispatcher and scheduler tests unchanged and

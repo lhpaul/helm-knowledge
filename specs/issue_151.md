@@ -122,6 +122,7 @@ reader can see how complete a number is:
   "costUsd": { "total": 0.0, "sessionsWithCost": 6, "sessionsUnknown": 8 },
   "reviewRounds": 3,
   "jobsInterrupted": 0,
+  "jobsNotInstrumented": 0,
   "byStage": { "spec": {…}, "plan": {…}, "code": {…}, "review": {…} }
 }
 ```
@@ -178,14 +179,15 @@ Each criterion is covered by an automated test.
    an all-Codex item reports `costUsd.total: 0` with `sessionsUnknown` equal
    to its session count and `total` clearly accompanied by that count (never
    presented as measured zero cost).
-6. **Aggregate by period.** `from`/`to` filter on session `startedAt`;
+6. **Aggregate by period.** `from`/`to` filter session-level data (sessions, tokens, cost, duration) on the session's `startedAt`, and job-level data (`reviewRounds`, `jobsInterrupted`, `jobsNotInstrumented`) on the job's `startedAt`; a job that straddles a boundary therefore contributes its rounds wholly to the period in which it started, while its sessions split by their own start;
    `groupBy=month|stage|item` works; invalid input returns `400`.
 7. **Review rounds.** The item aggregate reports rounds from job
    `cyclesCompleted`; an item with no review jobs reports `0` rounds and no
    `review` stage entry.
 8. **Legacy jobs.** Jobs written before this change (no `usage`) are counted
-   as `sessionsNotInstrumented`, contribute nothing to totals, and the read
-   path never fails on them.
+   as `jobsNotInstrumented` (a job count: the number of sessions in them is
+   not known), contribute nothing to session totals, and the read path never
+   fails on them. Their `cyclesCompleted` still counts toward `reviewRounds`.
 9. **No behaviour change.** Dispatch status, transitions, review-loop budget
    and stop rules behave identically with usage capture on; a failure while
    recording usage is logged (metadata only) and never fails the dispatch.
