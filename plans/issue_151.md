@@ -51,9 +51,15 @@
    (`UsageRecordingRuntime`, in `packages/orchestrator/src/runtimes/`) that
    wraps `spawn()`, awaits `wait()` and hands a usage record to an injected
    `onUsage(record)` sink. `SpawnParams` already carries `specialistId`,
-   `productSlug`, `externalId`, `model`. Stage derivation is a pure function
-   `stageForSpecialist(id)` next to `STAGE_TO_SPECIALIST` in
-   `dispatcher.ts`. The sink failing is caught and logged (metadata only).
+   `productSlug`, `externalId`, `model`. The **stage is not derived from the
+   session's `specialistId`** (early spec/plan review loops reuse the same
+   reviewer and adjudicator specialists as the code review): the decorator is
+   created per job with a recording context `{ jobId, stage }` where `stage`
+   comes from the job's specialist (`stageForJobSpecialist(id)`, a pure
+   function next to `STAGE_TO_SPECIALIST` in `dispatcher.ts`:
+   spec-writer/spec-draft-reviewer → spec, plan-writer/plan-draft-reviewer →
+   plan, implementer → code, reviewer-fanout → review), and stamps it on every
+   record along with the raw session `specialistId`. The sink failing is caught and logged (metadata only).
 6. **Persistence** (`apps/api/src/services/job-store.ts`, `dispatch-scheduler.ts`,
    `runtime-factory.ts`): wrap the runtime in the scheduler where the job is
    created, with a sink that appends the record to the job (one atomic
@@ -94,8 +100,8 @@
 - `claude-code.test.ts` / `codex.test.ts`: fixtures → tokens, cost and
   `costSource`; stream without result → unknown (AC 1–3).
 - `usage-recording.test.ts`: decorator emits one record per session, sink
-  failure does not fail the session, specialist→stage mapping table (AC 3, 4,
-  9).
+  failure does not fail the session, job-specialist→stage table, and early spec/plan review sessions attributed
+  to `spec`/`plan` rather than `review` (AC 3, 4, 9).
 - `job-store.test.ts`: N simultaneous `appendUsage` calls (and one
   concurrent final `updateJob`) keep all N records and the final status;
   `usage` persisted per session, legacy job (no `usage`)

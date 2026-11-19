@@ -57,7 +57,7 @@ existing per-job `DispatchResult` as a cross-check. A record has:
 | `productSlug`, `externalId` | Item | `SpawnParams` |
 | `jobId` | Dispatch that ran the session | scheduler context |
 | `specialistId` | `spec-writer`, `reviewer-fanout` members, `implementer`, … | `SpawnParams` |
-| `stage` | `spec`, `plan`, `code`, `review` (mapping below) | derived from `specialistId` |
+| `stage` | `spec`, `plan`, `code`, `review` (mapping below) | derived from the job's specialist |
 | `runtime` | `claude-code`, `codex`, `mock` | runtime instance |
 | `model` | model hint or the model the runtime reports | `SpawnParams.model`, Claude `modelUsage` keys |
 | `startedAt`, `endedAt`, `durationMs` | Session wall clock (measured by Helm) | runtime |
@@ -66,12 +66,16 @@ existing per-job `DispatchResult` as a cross-check. A record has:
 | `costUsd` | number or `null` | Claude `total_cost_usd` only |
 | `costSource` | `reported` or `unknown` | runtime |
 
-Stage mapping (by `specialistId`): `spec` = spec-writer, spec-remediator,
-spec-draft-reviewer; `plan` = plan-writer, plan-remediator,
-plan-draft-reviewer; `code` = implementer; `review` = reviewer-fanout
-members, review-adjudicator, code remediation inside the review loop. The
-raw `specialistId` is kept in every record so the mapping can change later
-without losing data (see open question 2).
+Stage mapping (by the **job's** specialist, i.e. the dispatch that ran the
+session, not the session's own specialist): `spec` = jobs of `spec-writer`
+and `spec-draft-reviewer`; `plan` = jobs of `plan-writer` and
+`plan-draft-reviewer`; `code` = jobs of `implementer`; `review` = jobs of
+`reviewer-fanout`. Every session in a job inherits the job's stage, so the
+reviewer, adjudicator and remediator sessions of an early spec or plan
+review loop count as `spec`/`plan` (they reuse the same reviewer specialists
+as the code review) and code remediation inside the code review loop counts
+as `review`. The session's raw `specialistId` is kept in every record so the
+mapping can change later without losing data (see open question 2).
 
 ### Review rounds
 
