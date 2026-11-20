@@ -56,8 +56,8 @@
    `lookupPrice(modelId)` (exact id or declared alias, nothing else).
 2. **Estimator** (`apps/api/src/services/usage-estimate.ts`): a pure
    `estimateSessionCost(record, table) → { usd: number } | { usd: null,
-   reason }` implementing the formulas and reason codes of the spec, in the
-   documented check order. It reads only `record.tokens` and `record.model`
+   reason }` implementing the counter normalization (invalid → `null`), the formulas and
+   the reason codes of the spec, in the documented check order. It reads only `record.tokens` and `record.model`
    (never `costUsd`, `costSource`, `DispatchResult` or `totalCostUsd`).
 3. **Aggregation** (`apps/api/src/services/usage.ts`): extend the
    accumulator (`UsageCore`) with `estimatedCostUsd` (`total`,
@@ -86,7 +86,8 @@
   `write-success.jsonl` and `exec-success*.jsonl` numbers) against a
   **test-only table** with round, obviously fake rates so expected values are
   hand-checkable (AC 1, 2); every reason code and the precedence order of the spec (AC 3); failure-path records
-  (AC 4); measured zeros → `0`; alias and no-prefix-match; no read of
+  (AC 4); measured zeros → `0`; invalid counters (negative, `NaN`, infinite, non-number)
+  normalized to `null`; alias and no-prefix-match; no read of
   `costUsd`.
 - `usage.test.ts` (extended): every block in the overall, `byStage` and
   `groups` output carries `note` and `priceTable` (AC 8); separation (AC 5: `costUsd`/`costSource` of

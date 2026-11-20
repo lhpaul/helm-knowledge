@@ -94,8 +94,12 @@ Arithmetic is plain floating point; stored/returned values are not rounded
 
 ### When it is `null` (and why)
 
-Every `null` has a reason, counted separately in the aggregate. The checks run
-in this fixed order and the first one that fails decides the reason, so the
+Every `null` has a reason, counted separately in the aggregate. Before any
+check, each counter is normalized: a value that is not a finite, non-negative
+number (negative, `NaN`, infinite, string, missing) is treated as `null`
+(unreported), so a malformed or legacy record can never produce a negative or
+non-finite estimate; it falls under `noTokens` or `incompleteTokens` like any
+unreported counter. The checks then run in this fixed order and the first one that fails decides the reason, so the
 order never needs a price entry before one has been identified:
 
 | # | Reason code | Condition |
@@ -187,7 +191,10 @@ Each criterion is covered by an automated test.
    `noModel`; partial tokens with an unknown model → `noPrice`; partial
    tokens with a priced model → `incompleteTokens`; `a,b` model →
    `multiModel`; `cacheRead > input` for an `inputIncludesCacheRead` entry →
-   `inconsistentTokens`. A measured all-zero session yields `0`.
+   `inconsistentTokens`. A measured all-zero session yields `0`. A record with
+   a negative, `NaN`, infinite or non-numeric counter treats that counter as
+   `null` (all invalid → `noTokens`; some invalid with a priced model →
+   `incompleteTokens`) and never yields a negative or non-finite estimate.
 4. **Failure paths.** Error, cancel, timeout and no-result sessions are
    `noTokens`; the dispatch outcome and `costUsd` are untouched.
 5. **Separation.** `costUsd` and `costSource` of every record are byte-identical
