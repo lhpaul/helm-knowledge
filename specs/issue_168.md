@@ -9,12 +9,12 @@
 
 ## Context
 
-#151 records, per agent session, tokens and the USD the runtime reports.
+Issue #151 records, per agent session, tokens and the USD the runtime reports.
 Claude Code reports `total_cost_usd`; Codex reports tokens but no USD
 (subscription billing), so Codex sessions have `costUsd: null` and an item run
 with Codex cannot be compared in money with one run with Claude Code.
 
-#168 adds a **separate, labelled estimate** computed from the recorded tokens
+Issue #168 adds a **separate, labelled estimate** computed from the recorded tokens
 and a per-model price table. It never replaces or mixes with `costUsd`.
 `costUsd` and `costSource` keep exactly the semantics defined in #151.
 

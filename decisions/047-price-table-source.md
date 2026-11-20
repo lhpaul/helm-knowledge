@@ -10,7 +10,7 @@ ADR-021 (Claude Code and Codex runtimes)
 
 ## Context
 
-#168 estimates USD from the tokens recorded per session (#151), so Helm needs
+Issue #168 estimates USD from the tokens recorded per session (#151), so Helm needs
 a table of prices per model and token type (input, cached input / cache read,
 cache write where billed, output). #151 deliberately kept pricing out of the
 runtimes, and the estimate must never be confused with the reported `costUsd`.
