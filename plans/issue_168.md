@@ -98,7 +98,7 @@
   fixture (AC 6); overall, `byStage`, `groups`, `from`/`to`, empty scope
   (AC 7); legacy records and odd values (AC 10); `unpricedModels` capped and
   sorted.
-- `usage-price-table.test.ts`: shape validation of the shipped table (AC 9).
+- `usage-price-table.test.ts`: shape validation of the shipped table (AC 9), including duplicate ids, alias-to-id and alias-to-alias collisions across entries.
 - `usage-script.test.ts` (or the existing script test): the extra column,
   footer and absence of a combined total (AC 8).
 - `usage-route.test.ts` (extended): block present with the operator token,

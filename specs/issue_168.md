@@ -216,7 +216,8 @@ Each criterion is covered by an automated test.
    the table version and as-of date and prints no combined cost.
 9. **Table integrity.** A test validates the shipped table: every rate is a
    finite non-negative number, every entry cites a source URL and a date,
-   aliases do not collide with another entry's id, and `version`/`asOf` are
+   every id and alias is unique across all entries (no alias equals another
+   entry's id or alias, and no id repeats), and `version`/`asOf` are
    present. (Values themselves are reviewed by a human, not tested.)
 10. **Legacy and unknown data.** #151 records written before this change (no
     new fields needed) are estimated like new ones; legacy jobs without
