@@ -1,11 +1,11 @@
 # issue_168 — Specification
 
-> **Status: draft, waiting for the owner.** Phase 1 (spec, plan, ADR) of
+> **Status: ready for implementation.** Phase 1 (spec, plan, ADR) of
 > [lhpaul/helm#168](https://github.com/lhpaul/helm/issues/168), the follow-up
 > of [#151](https://github.com/lhpaul/helm/issues/151) (decision 5 of
-> [specs/issue_151.md](issue_151.md)). [ADR-047](../decisions/047-price-table-source.md)
-> is **Proposed**; the questions in "Open questions for the owner" must be
-> answered before implementation. Priority: Low.
+> [specs/issue_151.md](issue_151.md)). The owner answered the open questions on
+> 2026-11-20 (see "Decisions"); [ADR-047](../decisions/047-price-table-source.md)
+> is **Accepted** (option A). Priority: Low.
 
 ## Context
 
@@ -56,12 +56,14 @@ A new **derived** value `estimatedCostUsd`, per session, computed from
 - **separate**: never added to, substituted for, or defaulted from `costUsd`;
   no field, total or table in the API sums the two;
 - **labelled**: wherever it appears it is accompanied by the fixed note
-  `estimate: tokens × public list price, not a billed amount`, and the price
-  table version and as-of date used;
+  `estimate: what this usage would cost at public API list price, not a billed
+  amount; all cache writes use a single rate`, and the price table version and
+  as-of date used (for Codex sessions this is the meaning: a subscription is
+  not billed per token, so the figure is the API-list-price equivalent, useful
+  for comparison, not for budgeting);
 - **nullable**: `null` when it cannot be computed. Never `0` for "unknown".
 
-It is computed when the aggregate is read (proposal; decision in open question
-1), so it needs no change to the stored record and covers #151 records that
+It is computed when the aggregate is read (decision 1), so it needs no change to the stored record and covers #151 records that
 already exist.
 
 ### Formula
@@ -135,7 +137,7 @@ The item and period aggregates of #151 (`GET …/items/:externalId/usage`,
   "notEstimatedReasons": { "noTokens": 2, "noPrice": 4 },
   "unpricedModels": ["<model id>"],
   "priceTable": { "version": "…", "asOf": "YYYY-MM-DD" },
-  "note": "estimate: tokens × public list price, not a billed amount"
+  "note": "estimate: what this usage would cost at public API list price, not a billed amount; all cache writes use a single rate"
 }
 ```
 
@@ -171,8 +173,8 @@ contract; the report-level `notes[]` additionally repeats the note once.
 ### What does not change
 
 `costUsd`, `costSource`, `costUsd.total/sessionsWithCost/sessionsUnknown`, the
-legacy `totalCostUsd`/`DispatchResult.costUsd`, the stored record schema (if
-open question 1 is answered "derive"), review-loop budgets, auth (the routes
+legacy `totalCostUsd`/`DispatchResult.costUsd`, the stored record schema
+(decision 1), review-loop budgets, auth (the routes
 are the same `GET`s behind the operator token), workflows and deploy.
 
 ## Acceptance Criteria
@@ -238,54 +240,43 @@ Each criterion is covered by an automated test.
   fast-mode multipliers, web-search or tool fees, the 5-minute vs 1-hour cache
   write tiers and regional multipliers are not modelled; the estimate is a
   list-price approximation and says so.
-- Persisting prices per record (see open question 1), a UI, alerts, budgets.
+- Persisting prices per record (decision 1), a UI, alerts, budgets.
 - Fetching prices from a network source at runtime (ADR-047 alternative C).
 - Backfilling `model` for old records.
 
-## Decisions proposed in this spec (confirm with the answers below)
+## Decisions
 
-1. **Derived at read time**, not stored on the record (open question 1).
-2. **Price table in the repo** as a versioned module (ADR-047, Proposed).
-3. **`null` with a counted reason**, never `0`, for anything not computable.
-4. **Reasoning tokens are not added** to `output`. Codex's counters are
-   `input_tokens`, `cached_input_tokens`, `output_tokens` and
-   `reasoning_output_tokens`; the fixtures are consistent with reasoning being
-   a subset of output (for example 652 reasoning of 939 output). The
-   implementation verifies this against the Codex documentation before
-   shipping; if it is wrong the formula, and this spec, change.
-5. **Exact model-id match plus declared aliases**, no prefix matching, so a
-   new model is `noPrice` instead of silently priced as an older one.
-6. **No per-model split of multi-model Claude sessions** in v1 (`multiModel`
-   → `null`). Splitting would need `modelUsage` tokens in the record.
+Taken by the owner on 2026-11-20 (answers to the open questions of the first
+draft):
 
-## Open questions for the owner
+1. **Derived at read time**, not stored on the record: no migration, no change
+   to `UsageRecord` or the privacy allow-list; past estimates move when the
+   table changes (the table version in the response says which one applied).
+2. **Price table in the repo** as a versioned module
+   ([ADR-047](../decisions/047-price-table-source.md), Accepted, option A).
+3. **First table:** built by the implementation session in the `lhpaul/helm`
+   PR, copied from the provider's public pricing page with URL and date per
+   entry; the owner approves it in that PR. Nothing is invented; nothing is
+   written in this phase.
+4. **Codex meaning:** the estimate is "what this usage would cost at API list
+   price", and is labelled that way (see "The field").
+5. **Claude sessions are estimated too**, so the estimate can be calibrated
+   against the reported `costUsd` (without ever correcting or blending it).
+6. **One rate for all `cacheCreation`** (no 5-minute/1-hour split); the note
+   says so.
+7. **Multi-model Claude sessions stay `null`** (`multiModel`); no per-model
+   tokens are added to the record.
+8. **Review cadence:** the table is reviewed monthly; price changes are
+   reviewed in the `lhpaul/helm` PR that edits the table.
 
-Answers change what gets built. Recommendation first.
+Technical decisions that follow from the above and the spec:
 
-1. **Derive or persist?** (a) *Derive at read* (recommended): no migration,
-   no schema or privacy-test change, covers existing records, a corrected
-   price table corrects history; cost: past estimates move when the table
-   changes. (b) *Persist on the record* at session end: stable history; cost:
-   a new field on every record, a stale price baked in, no coverage of
-   existing records, the privacy allow-list and `UsageRecord` change, and
-   risk rises from low to medium.
-2. **Which models get a price, and from which public source and date?** The
-   models in play are those in `product.yaml` for Codex (and any Claude model
-   Helm runs). Prices are not written in this phase: they must be copied from
-   the provider's public pricing page, with URL and date, in the
-   implementation PR. Who supplies/approves the first table?
-3. **Should Codex estimates use API list prices?** On a subscription the
-   owner does not pay per token, so the figure is "what this usage would cost
-   at API list price", useful for comparison, not for budgeting. Confirm that
-   is the intended meaning and wording of the label.
-4. **Estimate for Claude sessions too?** Recommended yes (enables calibration
-   against `costUsd` and keeps one rule for all runtimes). Alternative: only
-   where `costUsd` is `null`.
-5. **Cache write tier.** Treat all `cacheCreation` as one rate (recommended;
-   say so in the note) or ask #151 to also capture the 5-minute/1-hour split
-   (a record change; not recommended for a Low item).
-6. **Multi-model Claude sessions.** Leave `null` (recommended) or capture
-   per-model tokens in the record (a #151 schema change).
-7. **Where should price updates be reviewed?** In the `lhpaul/helm` PR that
-   edits the table (recommended), with a periodic check cadence the owner
-   names (for example monthly, or when a new model is adopted).
+9. **`null` with a counted reason**, never `0`, for anything not computable.
+10. **Reasoning tokens are not added** to `output`. Codex's counters are
+    `input_tokens`, `cached_input_tokens`, `output_tokens` and
+    `reasoning_output_tokens`; the fixtures are consistent with reasoning
+    being a subset of output (for example 652 reasoning of 939 output). The
+    implementation verifies this against the Codex documentation before
+    shipping; if it is wrong the formula, and this spec, change.
+11. **Exact model-id match plus declared aliases**, no prefix matching, so a
+    new model is `noPrice` instead of silently priced as an older one.

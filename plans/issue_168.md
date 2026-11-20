@@ -1,15 +1,13 @@
 # issue_168 — Implementation Plan
 
-> **Status: draft, waiting for the owner.** Implements
-> [specs/issue_168.md](../specs/issue_168.md) under
-> [ADR-047](../decisions/047-price-table-source.md) (Proposed). The plan
-> assumes the recommended answers (derive at read time, table as a repo
-> module); open questions that change it are marked **[if …]**. Nothing is
-> implemented yet and no code PR exists in `lhpaul/helm`.
+> **Status: ready.** Implements [specs/issue_168.md](../specs/issue_168.md)
+> under [ADR-047](../decisions/047-price-table-source.md) (Accepted, option A;
+> the owner's decisions of 2026-11-20 are in the spec). Nothing is implemented
+> yet and no code PR exists in `lhpaul/helm`.
 
 ## Risk and deployment impact
 
-- **Estimated risk: low** (with the recommended answers). The change is
+- **Estimated risk: low.** The change is
   additive and read-side: a pure function over the usage records and a static
   table, plus one new block in the aggregate response and one column in the
   script. It does not touch the runtimes, the dispatcher, the stored job
@@ -17,33 +15,34 @@
   affect a dispatch. The residual risk is a misleading number (a wrong price
   or formula), mitigated by the label, the table `asOf`, the denominators, the
   `unpricedModels` list and human review of every table edit.
-- **Risk becomes medium [if the owner chooses to persist the estimate on the
-  record]**: that changes the stored record schema and the privacy
-  allow-list, runs on every session, and bakes prices in. It would not be
-  high either (no auth, destructive operation or migration of existing data).
+- **Not persisted (owner decision 1):** the estimate is derived at read time,
+  so the stored record schema and the privacy allow-list do not change. Had it
+  been persisted the risk would be medium; if that is ever reopened, treat it
+  as a new decision (see the stop conditions).
 - **Data migration: none.** Nothing new is written; existing #151 records are
-  estimated at read time. **[if persisted: still none for old records, which
-  simply stay un-estimated.]**
+  estimated at read time.
 - **New dependencies: none.** No vitest, vite-node or other update. The table
   is a TypeScript module (no JSON import, so no `tsconfig` change).
 - **Configuration on a deployed instance: none.** No new environment
   variable, file or `product.yaml` field. Rollout is a normal release;
   rollback is reverting it (the response gains a block that older clients
-  ignore). **[if ADR-047 option B or D: a new optional env var or file, to be
-  documented before implementation.]**
+  ignore). ADR-047 is option A, so there is no operator file or override.
 - **Workflows and deploy:** no change to `.github/workflows`, no deploy step.
 - **Response compatibility:** the aggregate JSON gains `estimatedCostUsd` (in
   the overall block, each `byStage` entry and each `groups` entry); no
   existing field changes. The script gains one column.
 
-## Preconditions (before phase 2 starts)
+## Preconditions (before the code PR)
 
-1. The owner answers the open questions in the spec and moves ADR-047 to
-   Accepted (or another option).
-2. The owner approves the first table contents: models, rates, public source
-   URL and date per entry. The implementation does not invent values; the
-   table PR cites the provider pricing page and the date it was read.
-3. Verify against the providers' documentation (spec decision 4) that Codex
+1. Done (2026-11-20): the owner answered the open questions and ADR-047 is
+   Accepted, option A.
+2. **First price table:** the implementation session builds it in the
+   `lhpaul/helm` PR, copying each rate from the provider's public pricing
+   page and citing the URL and the date read per entry; the owner approves the
+   values in that PR. It does not invent or estimate values; a model whose
+   price cannot be traced to a public source is left out (it will show as
+   `noPrice`).
+3. Verify against the providers' documentation (spec decision 10) that Codex
    `reasoning_output_tokens` is a subset of `output_tokens`, and which Claude
    model ids `modelUsage` reports (dated snapshots, suffixes), to define the
    aliases.
@@ -77,7 +76,7 @@
    PR, `Refs lhpaul/helm#168`): update `operations/usage-cost-per-item.md`
    (replace "No USD is estimated" with how to read `estimatedCostUsd`, its
    denominator and that it is an estimate) and a short note on how to update
-   the table; no host names or private details. ADR-047 moves to Accepted in
+   the table and the monthly review (owner decision 8); no host names or private details. ADR-047 moves to Accepted in
    its own commit or PR once the owner decides.
 
 ## Tests
@@ -128,15 +127,15 @@
 
 One PR in `lhpaul/helm` (steps 1–6; roughly one table, one pure function, one
 accumulator extension, one script column, tests), plus one small docs PR in
-helm-knowledge. Both can wait for the owner's table approval; the code PR can
-be opened with a clearly marked test-only table only if the owner asks for it
-(otherwise it waits for real, sourced values).
+helm-knowledge. The code PR carries the first sourced price table and the owner
+approves its values there (owner decisions 3 and 8); the unit tests use a
+separate test-only table with obviously fake rates.
 
 ## Stop conditions for phase 2
 
 Stop and ask the owner if: a vitest or any other dependency update seems
-necessary; the owner chose to persist the estimate or to capture per-model or
-cache-tier tokens (that edits `UsageRecord`, the runtimes and the privacy
+necessary; the owner reopens the decision to persist the estimate or to capture
+per-model or cache-tier tokens (that edits `UsageRecord`, the runtimes and the privacy
 test, and risk becomes medium); the implementation needs edits beyond the
 files above; Codex `reasoning_output_tokens` turns out not to be a subset of
 `output_tokens`; a price cannot be traced to a public source and date; or risk

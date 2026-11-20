@@ -1,7 +1,7 @@
 # ADR-047: Source and maintenance of the per-model price table
 
 **Date:** 2026-11-20
-**Status:** Proposed (waiting for the owner)
+**Status:** Accepted (2026-11-20, decided by the owner: option A)
 **Related:** lhpaul/helm#168 (this decision), lhpaul/helm#151,
 `specs/issue_168.md`, `plans/issue_168.md`, ADR-046 (usage record storage),
 ADR-021 (Claude Code and Codex runtimes)
@@ -29,14 +29,15 @@ Facts that constrain the choice:
 - A wrong or stale price silently produces a wrong estimate, so gaps must be
   visible (a model with no price is `noPrice`, listed in `unpricedModels`) and
   every number must be reviewable.
-- The estimate is derived at read time (spec, open question 1), so the table
+- The estimate is derived at read time (spec, decision 1), so the table
   in effect is applied to all history.
 
-No price values are proposed in this ADR. The first table is filled in the
-implementation PR, copying from the providers' public pricing pages, citing
-the URL and date of each entry.
+No price values are written in this ADR. The first table is built by the
+implementation session in the `lhpaul/helm` PR, copied from the providers'
+public pricing pages with the URL and date of each entry, and approved by the
+owner in that PR.
 
-## Decision (proposed)
+## Decision
 
 **Option A: a versioned module in `lhpaul/helm`**
 (`apps/api/src/services/usage-price-table.ts`), a typed constant reviewed
@@ -50,13 +51,14 @@ through normal PRs, with this shape per model:
 
 and a table-level `version` and `asOf`, echoed in every response that shows an
 estimate. Maintenance: a price change or a new model is a small PR that edits
-this file, cites the source and date, and is reviewed like code; the owner
-names a review cadence (spec, open question 7). A gap shows up in
+this file, cites the source and date, and is reviewed like code; the table is
+reviewed monthly, and price changes are reviewed in the `lhpaul/helm` PR that
+edits it (spec, decision 8). A gap shows up in
 `unpricedModels`, not as a wrong number.
 
 ## Options
 
-### A. Versioned module in the app repo (recommended)
+### A. Versioned module in the app repo (chosen)
 
 - Pros: public, reviewable, diffable; atomic with the code that reads it; no
   new configuration, file, dependency or deployment step; the table version in
@@ -112,14 +114,16 @@ names a review cadence (spec, open question 7). A gap shows up in
 - Neutral: the table is public data with sources, consistent with the
   repository being public.
 
-## Open questions for the owner
+## Decisions taken by the owner (2026-11-20)
 
-1. Option A, B, C, D or E? (Recommendation: A.)
-2. Who supplies and approves the first table (models, sources, date)? It is
-   not written in this phase.
-3. Review cadence for the table (monthly, per new model adopted, or both).
-4. Does any instance need prices different from the public list? If yes, D
-   moves from "later" to "now".
+1. Option A, a versioned module in the repo.
+2. The first table is built by the implementation session in the `lhpaul/helm`
+   PR from the providers' public pricing pages (URL and date per entry) and
+   the owner approves it there.
+3. The table is reviewed monthly; price changes are reviewed in the PR that
+   edits it.
+4. Per-instance prices were not asked for: with option A there is no override.
+   If an instance needs one, that is the "Revisit when" case (add D).
 
 ## Revisit when
 
@@ -128,4 +132,4 @@ names a review cadence (spec, open question 7). A gap shows up in
 - A provider publishes a stable machine-readable pricing source worth
   trusting (reconsider C, with a pinned and reviewed snapshot).
 - Estimates need to be stable across table changes (revisit persisting the
-  estimate on the record, spec open question 1).
+  estimate on the record, spec decision 1).
