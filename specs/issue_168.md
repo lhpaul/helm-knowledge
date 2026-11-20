@@ -94,24 +94,27 @@ Arithmetic is plain floating point; stored/returned values are not rounded
 
 ### When it is `null` (and why)
 
-Every `null` has a reason, counted separately in the aggregate. In order of
-checking:
+Every `null` has a reason, counted separately in the aggregate. The checks run
+in this fixed order and the first one that fails decides the reason, so the
+order never needs a price entry before one has been identified:
 
-| Reason code | Condition |
-| --- | --- |
-| `noTokens` | every counter the entry requires is `null` or the session has no usage report (error, cancel, timeout, orphan gap) |
-| `incompleteTokens` | some, not all, required counters are `null` |
-| `noModel` | `model` is `null` |
-| `multiModel` | `model` contains `,` (several models in one session; tokens not split) |
-| `noPrice` | the model has no entry in the table (exact match, or a table-declared alias; no prefix or fuzzy matching) |
-| `inconsistentTokens` | `inputIncludesCacheRead` and `cacheRead > input` |
+| # | Reason code | Condition |
+| --- | --- | --- |
+| 1 | `noTokens` | all five counters are `null` (the session produced no usage report: error, cancel, timeout, orphan gap) |
+| 2 | `noModel` | `model` is `null` |
+| 3 | `multiModel` | `model` contains `,` (several models in one session; tokens not split) |
+| 4 | `noPrice` | the model has no entry in the table (exact id, or a table-declared alias; no prefix or fuzzy matching) |
+| 5 | `incompleteTokens` | the entry is known and some counter it requires is `null` (required counters below) |
+| 6 | `inconsistentTokens` | the entry has `inputIncludesCacheRead` and `cacheRead > input` |
 
-Required counters follow the entry: `input`, `output` and `cacheRead` always;
-`cacheCreation` only when the entry has a `cacheCreation` rate. So a Codex
-session (`cacheCreation: null` by design) is estimable, while a Claude session
-missing `cacheCreation` is `incompleteTokens`. A measured `0` is a number: a
-session with all counters measured as `0` estimates `0`, a session with all
-counters `null` estimates `null`.
+A session with some counters reported but no usable model is therefore
+`noModel`/`multiModel`/`noPrice`, and `incompleteTokens` only exists once the
+entry is known. Required counters follow the entry: `input`, `output` and
+`cacheRead` always; `cacheCreation` only when the entry has a `cacheCreation`
+rate. So a Codex session (`cacheCreation: null` by design) is estimable, while
+a Claude session missing `cacheCreation` is `incompleteTokens`. A measured `0`
+is a number: a session with all counters measured as `0` estimates `0`; a
+session with all counters `null` is `noTokens`.
 
 ### Aggregation
 
@@ -130,6 +133,11 @@ The item and period aggregates of #151 (`GET …/items/:externalId/usage`,
   "note": "estimate: tokens × public list price, not a billed amount"
 }
 ```
+
+`priceTable` and `note` are part of **every** `estimatedCostUsd` block (overall,
+each `byStage` entry, each `groups` entry), so a block read on its own is
+always labelled and tied to a table version. This is the single response
+contract; the report-level `notes[]` additionally repeats the note once.
 
 - It has **its own denominator**: `sessionsEstimated + sessionsNotEstimated`
   equals `sessions`, independent of `costUsd.sessionsWithCost` /
@@ -174,9 +182,12 @@ Each criterion is covered by an automated test.
    tokens) yields `(input − cacheRead)·in + cacheRead·cached + output·out`;
    `reasoning` is not added; `cacheCreation: null` does not block it.
 3. **Null, never zero.** Each reason code in the table above produces `null`
-   with that reason: all-null tokens, partial tokens, `model: null`,
-   `a,b` model, unknown model, `cacheRead > input` for an
-   `inputIncludesCacheRead` entry. A measured all-zero session yields `0`.
+   with that reason, and the precedence is tested: all-null tokens with a
+   null or unknown model → `noTokens`; partial tokens with `model: null` →
+   `noModel`; partial tokens with an unknown model → `noPrice`; partial
+   tokens with a priced model → `incompleteTokens`; `a,b` model →
+   `multiModel`; `cacheRead > input` for an `inputIncludesCacheRead` entry →
+   `inconsistentTokens`. A measured all-zero session yields `0`.
 4. **Failure paths.** Error, cancel, timeout and no-result sessions are
    `noTokens`; the dispatch outcome and `costUsd` are untouched.
 5. **Separation.** `costUsd` and `costSource` of every record are byte-identical
@@ -190,8 +201,9 @@ Each criterion is covered by an automated test.
    `byStage` and each `groups` entry, honours `from`/`to` on the session's
    `startedAt`, and an empty scope reports `total: 0`, `sessionsEstimated: 0`,
    `sessionsNotEstimated: 0`.
-8. **Labelled.** The response and the script output carry the note, the price
-   table version and as-of date; the script prints no combined cost.
+8. **Labelled.** Every `estimatedCostUsd` block (overall, `byStage`, `groups`)
+   carries `note` and `priceTable`; the script output carries the note and
+   the table version and as-of date and prints no combined cost.
 9. **Table integrity.** A test validates the shipped table: every rate is a
    finite non-negative number, every entry cites a source URL and a date,
    aliases do not collide with another entry's id, and `version`/`asOf` are

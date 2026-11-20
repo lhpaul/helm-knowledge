@@ -62,10 +62,12 @@
 3. **Aggregation** (`apps/api/src/services/usage.ts`): extend the
    accumulator (`UsageCore`) with `estimatedCostUsd` (`total`,
    `sessionsEstimated`, `sessionsNotEstimated`, `notEstimatedReasons`,
-   `unpricedModels`), filled per session next to the existing `costUsd` code
-   so it follows the same period filter, `byStage` and `groups`. Add the
-   `priceTable` and `note` once per report (not per group) and keep them in
-   `notes[]`. `costUsd` accumulation is not edited.
+   `unpricedModels`, plus `priceTable` and `note`), filled per session next to
+   the existing `costUsd` code so it follows the same period filter,
+   `byStage` and `groups`. Every `estimatedCostUsd` block (overall, each
+   `byStage` entry, each `groups` entry) carries `priceTable` and `note`
+   (spec: single response contract); the report-level `notes[]` repeats the
+   note once. `costUsd` accumulation is not edited.
 4. **Script** (`apps/api/src/scripts/usage.ts`): one extra column and the
    footer (note, table version/date); no combined total.
 5. **Routes** (`apps/api/src/routes/usage.ts`): no change expected (the
@@ -83,10 +85,11 @@
 - `usage-estimate.test.ts`: both formulas with fixture token counts (the
   `write-success.jsonl` and `exec-success*.jsonl` numbers) against a
   **test-only table** with round, obviously fake rates so expected values are
-  hand-checkable (AC 1, 2); every reason code (AC 3); failure-path records
+  hand-checkable (AC 1, 2); every reason code and the precedence order of the spec (AC 3); failure-path records
   (AC 4); measured zeros → `0`; alias and no-prefix-match; no read of
   `costUsd`.
-- `usage.test.ts` (extended): separation (AC 5: `costUsd`/`costSource` of
+- `usage.test.ts` (extended): every block in the overall, `byStage` and
+  `groups` output carries `note` and `priceTable` (AC 8); separation (AC 5: `costUsd`/`costSource` of
   every record unchanged, no summed field, Claude has both, Codex only the
   estimate); own denominator and reason counts on a mixed Claude/Codex/failed
   fixture (AC 6); overall, `byStage`, `groups`, `from`/`to`, empty scope
