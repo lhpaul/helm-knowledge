@@ -86,8 +86,10 @@
   `write-success.jsonl` and `exec-success*.jsonl` numbers) against a
   **test-only table** with round, obviously fake rates so expected values are
   hand-checkable (AC 1, 2); every reason code and the precedence order of the spec (AC 3); failure-path records
-  (AC 4); measured zeros → `0`; invalid counters (negative, `NaN`, infinite, non-number)
-  normalized to `null`; alias and no-prefix-match; no read of
+  (AC 4); measured zeros → `0`; invalid counters (negative, `NaN`, infinite, above
+  `Number.MAX_SAFE_INTEGER`, non-number) normalized to `null`; overflow of the
+  per-session estimate and of the running total (huge counters and rates)
+  → `inconsistentTokens` with a finite total; alias and no-prefix-match; no read of
   `costUsd`.
 - `usage.test.ts` (extended): every block in the overall, `byStage` and
   `groups` output carries `note` and `priceTable` (AC 8); separation (AC 5: `costUsd`/`costSource` of

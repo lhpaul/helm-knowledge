@@ -96,7 +96,8 @@ Arithmetic is plain floating point; stored/returned values are not rounded
 
 Every `null` has a reason, counted separately in the aggregate. Before any
 check, each counter is normalized: a value that is not a finite, non-negative
-number (negative, `NaN`, infinite, string, missing) is treated as `null`
+number no larger than `Number.MAX_SAFE_INTEGER` (negative, `NaN`, infinite, too
+large, string, missing) is treated as `null`
 (unreported), so a malformed or legacy record can never produce a negative or
 non-finite estimate; it falls under `noTokens` or `incompleteTokens` like any
 unreported counter. The checks then run in this fixed order and the first one that fails decides the reason, so the
@@ -109,7 +110,7 @@ order never needs a price entry before one has been identified:
 | 3 | `multiModel` | `model` contains `,` (several models in one session; tokens not split) |
 | 4 | `noPrice` | the model has no entry in the table (exact id, or a table-declared alias; no prefix or fuzzy matching) |
 | 5 | `incompleteTokens` | the entry is known and some counter it requires is `null` (required counters below) |
-| 6 | `inconsistentTokens` | the entry has `inputIncludesCacheRead` and `cacheRead > input` |
+| 6 | `inconsistentTokens` | the entry has `inputIncludesCacheRead` and `cacheRead > input`; or the computed estimate is not finite; or adding it to the running aggregate total would make that total non-finite (overflow: the session is counted here instead and the total stays finite) |
 
 A session with some counters reported but no usable model is therefore
 `noModel`/`multiModel`/`noPrice`, and `incompleteTokens` only exists once the
@@ -191,8 +192,10 @@ Each criterion is covered by an automated test.
    `noModel`; partial tokens with an unknown model → `noPrice`; partial
    tokens with a priced model → `incompleteTokens`; `a,b` model →
    `multiModel`; `cacheRead > input` for an `inputIncludesCacheRead` entry →
-   `inconsistentTokens`. A measured all-zero session yields `0`. A record with
-   a negative, `NaN`, infinite or non-numeric counter treats that counter as
+   `inconsistentTokens`. A measured all-zero session yields `0`. Counters of
+   `Number.MAX_SAFE_INTEGER` with a priced model never yield a non-finite
+   estimate or total (the overflow case is `inconsistentTokens`). A record with
+   a negative, `NaN`, infinite, too large or non-numeric counter treats that counter as
    `null` (all invalid → `noTokens`; some invalid with a priced model →
    `incompleteTokens`) and never yields a negative or non-finite estimate.
 4. **Failure paths.** Error, cancel, timeout and no-result sessions are
