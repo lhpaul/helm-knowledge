@@ -162,15 +162,23 @@ itself (every reference resolved, required variables non-empty), and the API cam
 back healthy through its supervised service, with `/health` 200 both locally and on
 the public ingress.
 
-Two deviations from the runbook below, both recorded rather than papered over:
+Three deviations from the runbook below, all recorded rather than papered over:
 
+- **Scope is wider than intended.** The env needs five fields from two items, but the
+  account was granted whole vaults: from the host it can read 10 items, including
+  credentials the env never uses (production and development service credentials,
+  source-control and cloud-provider access). A service account's grants are
+  immutable, so narrowing it means creating a new, dedicated vault, moving only the
+  env's items into it, and creating a new account scoped to it; the old account is
+  revoked. Tracked as a follow-up; see the runbook's
+  [Scope wider than intended](secrets-service-account.md#scope-wider-than-intended)
+  note.
 - The token lives in a `0600` file under the host user's `~/.config`, not in the
   login keychain. The keychain is unusable for this: over SSH it answers
   `User interaction is not allowed`, so any unattended or agent-driven run could not
-  read it. The token is read-only, scoped to the env's vaults, revocable, and its
-  source of truth stays the copy saved in 1Password; the env secrets themselves are
-  still only in 1Password. The policy note that rejected a keychain for the *secrets*
-  is unchanged and still holds.
+  read it. The source of truth stays the copy saved in 1Password; the env secrets
+  themselves are still only in 1Password. The policy note that rejected a keychain for
+  the *secrets* is unchanged and still holds.
 - The env input file (`apps/api/.env.<product>`) did not exist on the host; it only
   ever lived on the other machine. It now does, and its references were verified with
   a dry run before the first real run. It stays out of the public repos.

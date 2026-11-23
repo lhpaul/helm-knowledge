@@ -67,13 +67,20 @@ service account. Step 5 of the procedure checks this before the first run.
    Other).
 2. Name it `<service-account-name>`.
 3. Leave **can create vaults** off.
-4. Grant exactly one vault, `<vault>`, with **read items** only. Do not grant
-   write or share permissions, and do not grant Environments.
+4. Grant **one dedicated vault**, `<vault>`, with **read items** only. Do not
+   grant write or share permissions, and do not grant Environments. The grant is
+   per vault, never per item: everything in `<vault>` becomes readable from the
+   host, so it must hold nothing but the env's secrets — plus, on macOS at least,
+   the token item itself, since a service account can read the vault that stores
+   its own token. Do not reuse a vault that also holds other credentials.
 5. Set an expiration if the wizard offers one, and note the date (see
    [Rotation](#rotation)).
 6. Create it, then select **Save in 1Password**. The token is shown only once.
-   Save it in a vault the service account cannot read (for example, the owner's
-   Private vault), never in `<vault>`.
+   Save it in a vault the service account cannot read — **verify that**: in this
+   setup the account could read back its own token item, which is harmless for
+   this run (the token only unlocks the vault it was already granted) but means
+   "store it somewhere unreadable" is an assumption worth checking, not a
+   guarantee.
 
 The vault list and permissions cannot be edited later. Changing them means
 creating a new service account and revoking the old one.
@@ -197,11 +204,11 @@ is then marked `Resolved` with that reference.
 | Risk | Mitigation |
 |---|---|
 | Token leak (terminal, history, screenshot, backup) | Read-only scope on `<vault>` only limits the damage. Revoke at once (see [Revocation](#revocation)) and create a new token. Check the account's **Item Usage Report** for unexpected reads. |
-| Scope too wide | Anything later added to `<vault>` becomes readable from the host. Keep `<vault>` to the env's secrets. Scope cannot be edited: create a new account and revoke the old one. |
+| Scope too wide | **Realized, not hypothetical** — see [Scope wider than intended](#scope-wider-than-intended). Keep the granted vaults to the env's secrets; scope cannot be edited, so create a new account and revoke the old one. |
 | Token expiry or rotation | An expired token makes `sync-env` fail. The running API is not affected. See [Rotation](#rotation). |
 | Wrong account used | `OP_CONNECT_*` take precedence, and the documentation does not say how the token ranks against the desktop app integration. Step 4 confirms `SERVICE_ACCOUNT` before relying on it. |
 | Rate limits | Service accounts have hourly and daily request limits. `sync-env` makes a few reads per run, so it is not a concern for manual runs. Do not loop it from a script. |
-| Token file readable by the host user's other processes | `0600` limits it to that user. The token is read-only, scoped and revocable, and it only unlocks env secrets already present on the host in the generated `.env`. Rotate it if the host user is suspected of compromise. |
+| Token file readable by the host user's other processes | `0600` limits it to that user. The token is read-only and revocable, and its reach is bounded by its scope — which today is wider than the env needs (see above), so this compounds with the scope problem. Rotate it if the host user is suspected of compromise. |
 
 ### Rotation
 
@@ -248,8 +255,9 @@ set, check with `op user get --me` instead.
 
 Verified on the production host, in this order:
 
-1. The account authenticates as `SERVICE_ACCOUNT` and lists only the vaults it
-   was granted, read-only.
+1. The account authenticates as `SERVICE_ACCOUNT` and lists 10 items across the
+   vaults it was granted, read-only — **wider than the two items and five fields
+   the env needs**. See [Scope](#scope-wider-than-intended).
 2. The CLI on the host was upgraded (it was absent) to a version above the
    2.18.0 minimum.
 3. `apps/api/.env.<product>` was created on the host from the env references;
@@ -261,6 +269,35 @@ Verified on the production host, in this order:
 
 Not exercised: rotation and revocation (documented above), and a reboot after a
 token rotation. Both are the same commands as a first-time setup.
+
+## Scope wider than intended
+
+The procedure above grants whole vaults, because a service account cannot be
+granted single items. The first setup followed it literally, so the account reads
+everything in the vaults it was given, not just the env's secrets.
+
+Measured on 2026-11-23 from the host: **10 items readable**, against the **2 items
+and 5 fields** the env actually references. The surplus includes credentials the
+env never uses — other environments' service credentials, source-control and
+cloud-provider access, and a database-viewer credential.
+
+This is a real exposure: anything that can run as the host user can read those
+items with the token. It is not a duplicate-secrets problem (nothing left
+1Password), and the token is read-only and revocable, but the blast radius is larger
+than TD-003's decision intended.
+
+**Fix, when picked up as its own item.** Grants are immutable, so this is a
+replacement, not an edit:
+
+1. Create a custom vault that holds nothing but the env's items (or copies of just
+   the fields the env needs). Moving items between vaults keeps them inside
+   1Password. Store the token item outside it if possible, and check that
+   assumption rather than trusting it.
+2. Create a new service account with `read_items` on that vault only.
+3. Store the new token on the host, rerun steps 4–6, confirm `/health` 200.
+4. Revoke the old account (see [Revocation](#revocation)) and delete its token file.
+
+Until then, treat every item in the granted vaults as readable from the host.
 
 ## Rollback
 
