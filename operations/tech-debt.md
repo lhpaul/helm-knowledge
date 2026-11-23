@@ -164,15 +164,15 @@ the public ingress.
 
 Three deviations from the runbook below, all recorded rather than papered over:
 
-- **Scope is wider than intended.** The env needs five fields from two items, but the
+- **Scope is wider than intended.** The env needs four fields from two items, but the
   account was granted whole vaults: from the host it can read 10 items, including
   credentials the env never uses (production and development service credentials,
   source-control and cloud-provider access). A service account's grants are
-  immutable, so narrowing it means creating a new, dedicated vault, moving only the
-  env's items into it, and creating a new account scoped to it; the old account is
-  revoked. Tracked as a follow-up; see the runbook's
+  immutable, and neither item is exclusive to this env, so narrowing it means a
+  dedicated vault holding copies of just those four fields, a new account scoped to
+  it, and revoking the old one. Tracked as a follow-up; see the runbook's
   [Scope wider than intended](secrets-service-account.md#scope-wider-than-intended)
-  note.
+  note, which records the duplication trade-off that choice carries.
 - The token lives in a `0600` file under the host user's `~/.config`, not in the
   login keychain. The keychain is unusable for this: over SSH it answers
   `User interaction is not allowed`, so any unattended or agent-driven run could not

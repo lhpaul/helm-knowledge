@@ -277,8 +277,9 @@ granted single items. The first setup followed it literally, so the account read
 everything in the vaults it was given, not just the env's secrets.
 
 Measured on 2026-11-23 from the host: **10 items readable**, against the **2 items
-and 5 fields** the env actually references. The surplus includes credentials the
-env never uses — other environments' service credentials, source-control and
+and 4 fields** the env actually references (`github-token`; `linear-api-key`,
+`github-webhook-secret`, `linear-webhook-secret`). The surplus includes credentials
+the env never uses — other environments' service credentials, source-control and
 cloud-provider access, and a database-viewer credential.
 
 This is a real exposure: anything that can run as the host user can read those
@@ -286,15 +287,33 @@ items with the token. It is not a duplicate-secrets problem (nothing left
 1Password), and the token is read-only and revocable, but the blast radius is larger
 than TD-003's decision intended.
 
+**Facts that shape the fix**, checked before proposing it:
+
+- **No tracked file carries these references.** They appear only in gitignored
+  `apps/api/.env*` files: the host's input file, the host's generated `.env`, and
+  two more on the operator's machine (`.env.leasity-tenants`, `.env.helm`). So the
+  fix is not a repository change; it is three local files plus the vault move.
+- **The two `github-webhook-secret` fields hold different values** (compared by
+  digest, never by printing them). One belongs to Helm's own dogfood env, the other
+  to the consumer product. They cannot be merged, and a shared vault must keep both
+  distinct names.
+- The 2 items are shared: the Helm item also serves the dogfood env, and the
+  consumer item holds the product's application secrets, which the host does not
+  need. Moving either item whole would carry the other consumers' secrets along or
+  break their references.
+
 **Fix, when picked up as its own item.** Grants are immutable, so this is a
 replacement, not an edit:
 
-1. Create a custom vault that holds nothing but the env's items (or copies of just
-   the fields the env needs). Moving items between vaults keeps them inside
-   1Password. Store the token item outside it if possible, and check that
-   assumption rather than trusting it.
+1. Create a custom vault that holds only what this env needs: 4 fields, as 2 items
+   (names must stay distinct). Copy only those fields; do not move the originals,
+   which serve other consumers. This duplicates 4 values inside 1Password — decide
+   that trade explicitly, because a rotated original leaves the copy stale and the
+   host then fails silently. If duplication is not acceptable, move the originals
+   instead and update every consumer.
 2. Create a new service account with `read_items` on that vault only.
-3. Store the new token on the host, rerun steps 4–6, confirm `/health` 200.
+3. Store the new token on the host, update the 4 references in the host input file,
+   rerun steps 4–6, confirm `/health` 200.
 4. Revoke the old account (see [Revocation](#revocation)) and delete its token file.
 
 Until then, treat every item in the granted vaults as readable from the host.
