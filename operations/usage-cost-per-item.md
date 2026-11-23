@@ -66,9 +66,50 @@ while its sessions split by their own start.
   cache-creation counter, so that counter is unreported for it.
 - A session that ended without the runtime's final message (crash, timeout,
   cancel) has `null` tokens and cost; its duration is measured by Helm.
-- No USD is estimated from tokens. An estimate is a separate follow-up
-  ([lhpaul/helm#168](https://github.com/lhpaul/helm/issues/168)) and, if built,
-  will be a distinct labelled field that is never mixed into `costUsd`.
+- The reported `costUsd` is never replaced or corrected by an estimate; the
+  estimate is a separate block, described next.
+
+## Estimated USD (`estimatedCostUsd`)
+
+[lhpaul/helm#168](https://github.com/lhpaul/helm/issues/168) (implemented in
+[lhpaul/helm#169](https://github.com/lhpaul/helm/pull/169); spec
+[issue_168](../specs/issue_168.md), plan [issue_168](../plans/issue_168.md),
+[ADR-047](../decisions/047-price-table-source.md), Accepted) adds a **separate,
+labelled estimate** next to `costUsd` in every aggregate (overall, each
+`byStage` entry, each `groups` entry).
+
+- **What it means.** Tokens and model of each session priced with a per-model
+  table of public API list prices. Every block carries the note: *estimate: what
+  this usage would cost at public API list price, not a billed amount; all
+  cache writes use a single rate*, plus `priceTable.version` and `asOf`. For
+  Codex (subscription) it is the API-list-price equivalent, useful to compare
+  items run with different runtimes, not for budgeting. Claude sessions are
+  estimated too, so the estimate can be eyeballed against the reported
+  `costUsd`; it is never blended with it, and no field sums the two.
+- **Derived at read time.** It is computed when the aggregate is read, not
+  stored on the record, so old records are estimated too and past figures move
+  when the table changes (the table version in the response says which one
+  applied).
+- **Own denominator.** `sessionsEstimated + sessionsNotEstimated` equals
+  `sessions`, independent of `costUsd.sessionsWithCost` / `sessionsUnknown`.
+  `total` sums only estimated sessions; read it with `sessionsEstimated`. A
+  bare `total: 0` with `sessionsEstimated: 0` means nothing could be estimated.
+- **Never 0 for unknown.** A session is not estimated when it has no tokens
+  (`noTokens`), no model (`noModel`), several models (`multiModel`), a model
+  without a price (`noPrice`), a required counter missing
+  (`incompleteTokens`) or inconsistent counters (`inconsistentTokens`).
+  `notEstimatedReasons` counts each reason.
+- **`unpricedModels`** lists the distinct model ids (sorted, at most 20) seen
+  in `noPrice` sessions. A model there needs a price entry or an alias.
+- **Where the table lives.** A versioned module in `lhpaul/helm`
+  ([`usage-price-table.ts`](https://github.com/lhpaul/helm/blob/develop/apps/api/src/services/usage-price-table.ts)),
+  each entry with its public source URL and date. Prices are not copied into
+  this repository.
+- **Maintenance.** The table is reviewed monthly. A price change or a new model
+  is a small PR in `lhpaul/helm` that edits that module citing the source and
+  date, and the values are reviewed in that PR.
+- **Not modelled.** Tiered or long-context pricing, batch or fast-mode rates,
+  tool fees, the 5-minute vs 1-hour cache-write split and regional multipliers.
 
 ## Gaps the aggregate makes visible
 
