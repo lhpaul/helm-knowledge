@@ -204,7 +204,7 @@ is then marked `Resolved` with that reference.
 | Risk | Mitigation |
 |---|---|
 | Token leak (terminal, history, screenshot, backup) | Read-only scope on `<vault>` only limits the damage. Revoke at once (see [Revocation](#revocation)) and create a new token. Check the account's **Item Usage Report** for unexpected reads. |
-| Scope too wide | **Realized, not hypothetical** — see [Scope wider than intended](#scope-wider-than-intended). Keep the granted vaults to the env's secrets; scope cannot be edited, so create a new account and revoke the old one. |
+| Scope too wide | **Realized here, then fixed** — see [Narrowing the service account](#narrowing-the-service-account-resolved-2026-11-23). Grant only a vault holding the env's secrets; scope cannot be edited, so narrowing means a new account and revoking the old one. |
 | Token expiry or rotation | An expired token makes `sync-env` fail. The running API is not affected. See [Rotation](#rotation). |
 | Wrong account used | `OP_CONNECT_*` take precedence, and the documentation does not say how the token ranks against the desktop app integration. Step 4 confirms `SERVICE_ACCOUNT` before relying on it. |
 | Rate limits | Service accounts have hourly and daily request limits. `sync-env` makes a few reads per run, so it is not a concern for manual runs. Do not loop it from a script. |
@@ -255,9 +255,10 @@ set, check with `op user get --me` instead.
 
 Verified on the production host, in this order:
 
-1. The account authenticates as `SERVICE_ACCOUNT` and lists 10 items across the
-   vaults it was granted, read-only — **wider than the two items and five fields
-   the env needs**. See [Scope](#scope-wider-than-intended).
+1. The account authenticates as `SERVICE_ACCOUNT` and lists read-only what it was
+   granted. The first setup granted whole vaults (10 items, wider than the two items
+   and four fields the env needs); it has since been narrowed. See
+   [Narrowing the service account](#narrowing-the-service-account-resolved-2026-11-23).
 2. The CLI on the host was upgraded (it was absent) to a version above the
    2.18.0 minimum.
 3. `apps/api/.env.<product>` was created on the host from the env references;
@@ -270,53 +271,59 @@ Verified on the production host, in this order:
 Not exercised: rotation and revocation (documented above), and a reboot after a
 token rotation. Both are the same commands as a first-time setup.
 
-## Scope wider than intended
+## Narrowing the service account (resolved 2026-11-23)
 
 The procedure above grants whole vaults, because a service account cannot be
-granted single items. The first setup followed it literally, so the account reads
-everything in the vaults it was given, not just the env's secrets.
-
-Measured on 2026-11-23 from the host: **10 items readable**, against the **2 items
-and 4 fields** the env actually references (`github-token`; `linear-api-key`,
-`github-webhook-secret`, `linear-webhook-secret`). The surplus includes credentials
+granted single items. The first setup followed it literally, so the account read
+everything in the vaults it was given: **10 items**, against the **2 items and 4
+fields** the env actually references (`github-token`; `linear-api-key`,
+`github-webhook-secret`, `linear-webhook-secret`). The surplus included credentials
 the env never uses — other environments' service credentials, source-control and
 cloud-provider access, and a database-viewer credential.
 
-This is a real exposure: anything that can run as the host user can read those
-items with the token. It is not a duplicate-secrets problem (nothing left
-1Password), and the token is read-only and revocable, but the blast radius is larger
-than TD-003's decision intended.
+That was a real exposure: anything that could run as the host user could read those
+items with the token. Not a duplicate-secrets problem (nothing left 1Password) and
+the token was read-only and revocable, but the blast radius was larger than TD-003's
+decision intended. **It is closed.**
 
-**Facts that shape the fix**, checked before proposing it:
+### What replaced it
 
-- **No tracked file carries these references.** They appear only in gitignored
-  `apps/api/.env*` files: the host's input file, the host's generated `.env`, and
-  two more on the operator's machine (`.env.leasity-tenants`, `.env.helm`). So the
-  fix is not a repository change; it is three local files plus the vault move.
+Grants are immutable, so this was a replacement, not an edit. A dedicated vault now
+holds **only** what this env needs: the same 4 fields, as 2 items with their original
+names. A new service account has `read_items` on that vault alone, and the old one is
+revoked.
+
+Two facts shaped the design and are worth keeping, because they apply to any
+environment doing the same move:
+
+- **The references live only in gitignored files.** No tracked file carries them, so
+  this is not a repository change.
 - **The two `github-webhook-secret` fields hold different values** (compared by
-  digest, never by printing them). One belongs to Helm's own dogfood env, the other
-  to the consumer product. They cannot be merged, and a shared vault must keep both
-  distinct names.
-- The 2 items are shared: the Helm item also serves the dogfood env, and the
-  consumer item holds the product's application secrets, which the host does not
-  need. Moving either item whole would carry the other consumers' secrets along or
-  break their references.
+  digest, never printed). One belongs to Helm's own dogfood env, the other to the
+  consumer product. They cannot be merged, and the dedicated vault must keep the
+  right one under its own name.
 
-**Fix, when picked up as its own item.** Grants are immutable, so this is a
-replacement, not an edit:
+The 2 source items are shared: the Helm item also serves the dogfood env, and the
+consumer item holds the product's application secrets, which the host does not need.
+So the fields were **copied**, not moved, and the originals stayed where other
+consumers expect them.
 
-1. Create a custom vault that holds only what this env needs: 4 fields, as 2 items
-   (names must stay distinct). Copy only those fields; do not move the originals,
-   which serve other consumers. This duplicates 4 values inside 1Password — decide
-   that trade explicitly, because a rotated original leaves the copy stale and the
-   host then fails silently. If duplication is not acceptable, move the originals
-   instead and update every consumer.
-2. Create a new service account with `read_items` on that vault only.
-3. Store the new token on the host, update the 4 references in the host input file,
-   rerun steps 4–6, confirm `/health` 200.
-4. Revoke the old account (see [Revocation](#revocation)) and delete its token file.
+### The cost of copying
 
-Until then, treat every item in the granted vaults as readable from the host.
+Copying duplicates 4 values inside 1Password, so **a rotated original leaves the copy
+stale** and the host then fails late — `sync-env` writes a dead token, and the error
+surfaces on the first call that uses it. Every rotation of one of these four values
+must update both sides, then rerun `sync-env` and check `/health`.
+
+If that burden ever outweighs the exposure it prevents, the alternative is to move the
+items instead and update every consumer.
+
+### Verified once, on 2026-11-23
+
+- The new account sees **one vault**; reads outside it are refused.
+- `sync-env` regenerated the env with no unresolved references and no empty values.
+- `/health` answered 200, an authenticated API route answered 200, and a webhook with
+  a valid signature answered 200 against 401 without one.
 
 ## Rollback
 
