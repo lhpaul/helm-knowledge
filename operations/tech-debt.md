@@ -95,18 +95,18 @@ race bugs until a rate-limit or slow CR run masks them.
 
 ## TD-003 — Production instance: durable secrets-manager session
 
-- **Status:** In progress, pending the owner — a 1Password service account was
-  adopted on 2026-11-16 and the owner configures it on the host by hand
-  ([runbook](secrets-service-account.md)). It becomes `Resolved` when the owner
-  confirms the setup. Tracked as
-  [lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138). Only the durable
-  secrets-manager session remains: the supervised-service half shipped 2026-09-01
-  and its tracker item was **closed** with it (operator decision, 2026-09-01: close
-  the ticket, keep the session as tracked debt).
+- **Status:** Resolved — 2026-11-23, verified on the host. A 1Password service
+  account reads the env's secrets and the host regenerated `apps/api/.env` by
+  itself ([runbook](secrets-service-account.md), procedure and outcome in that
+  page's *Result* section). Tracked as
+  [lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138). The
+  supervised-service half shipped 2026-09-01 and its tracker item was **closed**
+  with it (operator decision, 2026-09-01: close the ticket, keep the session as
+  tracked debt).
 - **Date identified:** 2026-08-20
 - **Origin:** production instance bootstrap ([runbook](production-instance.md))
 - **Effort:** Small–Medium
-- **Risk if ignored:** Low (was Medium; the reboot half is fixed)
+- **Risk if ignored:** Low (was Medium; both halves are fixed)
 
 ### Context
 
@@ -151,19 +151,29 @@ elsewhere becomes a bottleneck, or a second machine needing the same env.
 
 **Decision (2026-11-16): adopt a 1Password service account.** The owner confirmed
 that the plan can issue service accounts, which was the open first step. The owner
-creates the account (read-only, limited to the one vault the env needs) and
-configures it on the host by hand. The token lives in the host user's login
-keychain and is loaded into `OP_SERVICE_ACCOUNT_TOKEN` only for the `sync-env` run.
-The env secrets stay only in 1Password, so the keychain rejection above still
-holds: the keychain keeps only the revocable token that reads them. Procedure,
-checks and risks: [secrets-service-account.md](secrets-service-account.md).
+creates the account (read-only, limited to the vaults the env needs) and configures
+it on the host by hand. Procedure, checks and risks:
+[secrets-service-account.md](secrets-service-account.md).
 
-`op inject` supports service accounts. The script's `op account list` sign-in
-check is not covered by the service-account documentation, so the runbook checks
-it before the first run. If it fails, the script needs a small code change, made as
-a separate item. The status moves to `Resolved` when the owner confirms on
-[lhpaul/helm#138](https://github.com/lhpaul/helm/issues/138) that `.env` was
-regenerated on the host.
+**Resolved — 2026-11-23.** Set up on the production host and verified end to end:
+the account authenticates as `SERVICE_ACCOUNT`, the CLI on the host was upgraded to a
+version that supports it, `pnpm sync-env` regenerated `apps/api/.env` on the host
+itself (every reference resolved, required variables non-empty), and the API came
+back healthy through its supervised service, with `/health` 200 both locally and on
+the public ingress.
+
+Two deviations from the runbook below, both recorded rather than papered over:
+
+- The token lives in a `0600` file under the host user's `~/.config`, not in the
+  login keychain. The keychain is unusable for this: over SSH it answers
+  `User interaction is not allowed`, so any unattended or agent-driven run could not
+  read it. The token is read-only, scoped to the env's vaults, revocable, and its
+  source of truth stays the copy saved in 1Password; the env secrets themselves are
+  still only in 1Password. The policy note that rejected a keychain for the *secrets*
+  is unchanged and still holds.
+- The env input file (`apps/api/.env.<product>`) did not exist on the host; it only
+  ever lived on the other machine. It now does, and its references were verified with
+  a dry run before the first real run. It stays out of the public repos.
 
 ### Why it matters
 

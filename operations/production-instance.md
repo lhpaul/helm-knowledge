@@ -75,13 +75,11 @@ the external review provider is set in `review.external`.
 ### Secrets
 
 - `apps/api/.env` persists on disk, so the API restarts unattended after a
-  reboot. Regenerating it (rotation, a new key) needs a signed-in secrets
-  manager session, which the host does not keep across reboots, so today it is
-  done from another machine. Tracked as **TD-003** in the
-  [tech-debt register](tech-debt.md).
-- A read-only 1Password service account removes that dependency: `sync-env`
-  runs on the host with `OP_SERVICE_ACCOUNT_TOKEN` loaded only for that run.
-  Procedure: [secrets-service-account.md](secrets-service-account.md).
+  reboot. Regenerating it (rotation, a new key) no longer needs a signed-in
+  session or another machine: a read-only 1Password service account runs
+  `sync-env` on the host with `OP_SERVICE_ACCOUNT_TOKEN` loaded only for that
+  run (**TD-003**, resolved 2026-11-23). Procedure:
+  [secrets-service-account.md](secrets-service-account.md).
 
 ## Webhooks
 
@@ -147,10 +145,10 @@ curl -s -X POST "$BASE/api/products/<product-slug>/items/<ITEM-ID>/dispatch"
 
 ## Open debts
 
-1. **Durable secrets-manager session on the host** → **TD-003** in the
-   [tech-debt register](tech-debt.md), tracked as
-   [helm#138](https://github.com/lhpaul/helm/issues/138). In progress: a
-   service account was adopted on 2026-11-16 and the owner sets it up
+1. ~~**Durable secrets-manager session on the host**~~ → **TD-003** in the
+   [tech-debt register](tech-debt.md), resolved 2026-11-23 in
+   [helm#138](https://github.com/lhpaul/helm/issues/138). A read-only service
+   account regenerates `apps/api/.env` on the host
    ([runbook](secrets-service-account.md)).
 2. ~~**Residual race:** a status webhook could arrive before the pending intent
    was persisted.~~ → **TD-002**, resolved in

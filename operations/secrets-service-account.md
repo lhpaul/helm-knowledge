@@ -8,14 +8,14 @@ of **TD-003** in the [tech-debt register](tech-debt.md), tracked as
 
 The owner runs this by hand. Agents do not run `op`, `sync-env` or anything
 against 1Password or real secrets. This page keeps only the generic procedure:
-real vault, item, service-account and keychain names, the host and its paths
+real vault, item, service-account and token-file names, the host and its paths
 stay in the owner's private operations notes. Placeholders used below:
 
 | Placeholder | Meaning |
 |---|---|
-| `<vault>` | The dedicated vault that holds only the secrets the env needs |
+| `<vault>` | The vault(s) that hold only the secrets the env needs |
 | `<service-account-name>` | The service account's name in 1Password |
-| `<keychain-service>` | The name of the macOS keychain item that holds the token |
+| `<token-file>` | The `0600` file on the host that holds the service account token |
 | `<helm-checkout>` | The Helm checkout that serves the instance |
 | `<product>` | The product slug passed to `sync-env` |
 
@@ -25,7 +25,8 @@ Steps marked **Verify** only check state and change nothing.
 
 The owner confirmed that the 1Password plan can issue service accounts and
 decided to adopt one. The owner creates it and configures it on the host by hand.
-TD-003 stays `In progress` until the owner confirms the setup works.
+TD-003 stayed `In progress` until the setup was verified; it is `Resolved` since
+2026-11-23 (see [Result](#result-2026-11-23)).
 
 ## How the script uses the CLI
 
@@ -84,15 +85,12 @@ so save it in 1Password right away and clear the terminal.
 
 ### 2. Store the token on the host
 
-Store the token in the host user's **login keychain**, not in a file:
+Store the token in a `0600` file owned by the host user, outside any repo:
 
 ```bash
-# Prompts for the token. Paste it at the prompt; do not put it on the command line.
-security add-generic-password -a "$USER" -s <keychain-service> -w
+install -m 600 /dev/null ~/.config/dev-session/<token-file>
+# then paste the token into that file
 ```
-
-With `-w` as the last argument, `security` prompts for the value, so the token
-does not end up in shell history or in the process list.
 
 Do not put the token in:
 
@@ -102,23 +100,31 @@ Do not put the token in:
 - the API's service definition. The API never needs the token: it reads the
   generated `.env`.
 
+**Why not the OS keychain.** The first version of this runbook used the login
+keychain (`security add-generic-password`). It was dropped after testing on the
+host: over SSH the keychain answers `User interaction is not allowed`, both when
+writing an item and when reading it, so `sync-env` could only ever run from a
+graphical session. A `0600` file works over SSH, which is how the host is
+operated in practice, and matches the token file the ingress already keeps
+there.
+
 This does not conflict with TD-003's "no secrets outside 1Password" policy. The
 env secrets (`GITHUB_TOKEN`, webhook secrets) stay only in 1Password and in the
-generated `.env`, as today. The keychain holds only the token that lets the
-host read them. That token is read-only, limited to `<vault>`, revocable at any
+generated `.env`, as today. The file holds only the token that lets the host
+read them. That token is read-only, limited to `<vault>`, revocable at any
 time, and its source of truth is the copy saved in 1Password in step 1.
 
 ### 3. Make `op` use the token after a reboot
 
-Keychain items survive reboots. The login keychain unlocks when the user logs
-in. Load the token into the environment only for the command that needs it. A
-helper function in the owner's shell config contains no secret:
+A file survives reboots and needs nothing unlocked. Load the token into the
+environment only for the command that needs it. A helper function in the
+owner's shell config contains no secret:
 
 ```bash
 helm_sync_env() {
   (
     unset OP_CONNECT_HOST OP_CONNECT_TOKEN
-    OP_SERVICE_ACCOUNT_TOKEN="$(security find-generic-password -a "$USER" -s <keychain-service> -w)" || exit 1
+    OP_SERVICE_ACCOUNT_TOKEN="$(cat ~/.config/dev-session/<token-file>)" || exit 1
     export OP_SERVICE_ACCOUNT_TOKEN
     cd <helm-checkout> && pnpm sync-env -- "$1"
   )
@@ -126,8 +132,8 @@ helm_sync_env() {
 ```
 
 The parentheses run it in a subshell, so the token is gone when the command
-ends. Over SSH, if `security` reports that the keychain is locked, run
-`security unlock-keychain` (it asks for the user's password) and retry.
+ends. Over SSH, run the checkout command through a login shell (`zsh -lc`) or
+the CLI and `pnpm` may be missing from `PATH`.
 
 ### 4. Verify the service account
 
@@ -135,7 +141,7 @@ Run each check in a subshell with the token loaded, as in the helper:
 
 ```bash
 (
-  OP_SERVICE_ACCOUNT_TOKEN="$(security find-generic-password -a "$USER" -s <keychain-service> -w)" || exit 1
+  OP_SERVICE_ACCOUNT_TOKEN="$(cat ~/.config/dev-session/<token-file>)" || exit 1
   export OP_SERVICE_ACCOUNT_TOKEN
   op user get --me     # Verify: Type is SERVICE_ACCOUNT
   op vault list        # Verify: only <vault> is listed
@@ -154,6 +160,16 @@ In the same kind of subshell, run `op account list; echo "exit=$?"`.
   runs. Stop here and report it. The script needs a code change (see
   [Known gap](#known-gap-the-scripts-sign-in-check)), made as its own item in
   `lhpaul/helm`.
+
+The script's input file `apps/api/.env.<product>` must also exist on the host;
+it lives outside the public repos. **Verify** it before the first real run by
+injecting it to a scratch path and confirming no `op://` reference remains:
+
+```bash
+op inject -i apps/api/.env.<product> -o /tmp/sync-env-check --force
+grep -c 'op://' /tmp/sync-env-check   # Verify: 0
+rm /tmp/sync-env-check
+```
 
 ### 6. Regenerate the env on the host
 
@@ -185,17 +201,17 @@ is then marked `Resolved` with that reference.
 | Token expiry or rotation | An expired token makes `sync-env` fail. The running API is not affected. See [Rotation](#rotation). |
 | Wrong account used | `OP_CONNECT_*` take precedence, and the documentation does not say how the token ranks against the desktop app integration. Step 4 confirms `SERVICE_ACCOUNT` before relying on it. |
 | Rate limits | Service accounts have hourly and daily request limits. `sync-env` makes a few reads per run, so it is not a concern for manual runs. Do not loop it from a script. |
-| Locked keychain over SSH | `security unlock-keychain`, then retry. |
+| Token file readable by the host user's other processes | `0600` limits it to that user. The token is read-only, scoped and revocable, and it only unlocks env secrets already present on the host in the generated `.env`. Rotate it if the host user is suspected of compromise. |
 
 ### Rotation
 
 In 1Password.com: Developer → Service accounts → `<service-account-name>` →
 **Rotate Token**. Choose when the existing token expires (now, 1 hour or 3 days),
-confirm, then **Save in 1Password**. Update the host's keychain item, again
-through the prompt:
+confirm, then **Save in 1Password**. Rewrite the host file with the new value,
+keeping its mode:
 
 ```bash
-security add-generic-password -U -a "$USER" -s <keychain-service> -w
+umask 077 && cat > ~/.config/dev-session/<token-file>
 ```
 
 Then repeat step 4. The new token keeps the same permissions. Rotate after any
@@ -209,21 +225,46 @@ In 1Password.com: Developer → Service accounts → `<service-account-name>` �
 the host copy:
 
 ```bash
-security delete-generic-password -a "$USER" -s <keychain-service>
+rm ~/.config/dev-session/<token-file>
 ```
+
+## Known gap: the script's sign-in check
 
 ## Known gap: the script's sign-in check
 
 `sync-env` checks `op account list` before `op inject`. The service-account
 documentation does not cover that command, and its error message points to
-`op signin`, which does not apply to service accounts. If step 5 fails, the
-change for a separate code item would be: when `OP_SERVICE_ACCOUNT_TOKEN` is
-set, check with `op user get --me` instead of `op account list`, and mention
-the token in the error message. This item does not change code.
+`op signin`, which does not apply to service accounts.
+
+**Answered 2026-11-23: it passes.** With only `OP_SERVICE_ACCOUNT_TOKEN` set,
+`op account list` exits `0` (printing no accounts). It was checked twice: on a
+machine with no 1Password account configured at all, and on the host with the
+real token. So the script needs **no code change**, and the feature item's
+"no code changes unless needed" criterion holds. If a later CLI version makes
+this check fail, the fix is a separate item: when `OP_SERVICE_ACCOUNT_TOKEN` is
+set, check with `op user get --me` instead.
+
+## Result (2026-11-23)
+
+Verified on the production host, in this order:
+
+1. The account authenticates as `SERVICE_ACCOUNT` and lists only the vaults it
+   was granted, read-only.
+2. The CLI on the host was upgraded (it was absent) to a version above the
+   2.18.0 minimum.
+3. `apps/api/.env.<product>` was created on the host from the env references;
+   a dry inject left no `op://` reference.
+4. `pnpm sync-env` regenerated `apps/api/.env` on the host itself: 6 variables,
+   no unresolved references, mode `0600`, previous file kept as a backup.
+5. The supervised service restarted and `/health` answered 200 locally and on
+   the public ingress; `/api/products` and `/api/items` answered 200.
+
+Not exercised: rotation and revocation (documented above), and a reboot after a
+token rotation. Both are the same commands as a first-time setup.
 
 ## Rollback
 
-Revoke the token, delete the keychain item and go back to generating
+Revoke the token, delete the host file and go back to generating
 `apps/api/.env` on another machine, as described in the private runbook.
 Nothing in Helm depends on the service account.
 
