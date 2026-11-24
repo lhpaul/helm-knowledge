@@ -46,8 +46,9 @@ the external review provider is set in `review.external`.
   `localhost` that resolves to IPv4). After updating, restart the service and
   check `curl -sf http://127.0.0.1:3001/health` and the public health endpoint.
 - Only set `HELM_API_HOST` (for example `0.0.0.0`) when the API must be reached
-  from another machine. The API has no authentication; prefer an
-  authenticated proxy.
+  from another machine. Prefer an authenticated proxy, and remember that the
+  operator token below is the only thing standing between a reachable port and
+  every item Helm knows about.
 
 ### Cross-origin protection (helm#162)
 
@@ -80,6 +81,76 @@ the external review provider is set in `review.external`.
   `sync-env` on the host with `OP_SERVICE_ACCOUNT_TOKEN` loaded only for that
   run (**TD-003**, resolved 2026-11-23). Procedure:
   [secrets-service-account.md](secrets-service-account.md).
+- **Everything the env contains must live in the vault the service account can
+  read.** The account is scoped to one dedicated vault and is not permitted to
+  resolve a reference elsewhere; `sync-env` fails with
+  `"<vault>" isn't a vault in this account` and writes nothing. This is the
+  rule to check first when adding a variable: a reference the operator can read
+  is not necessarily one the host can.
+- Store a single-value secret in a `SECURE_NOTE` item with a named concealed
+  field. A `PASSWORD` item validates a `ps` field and silently saves an empty
+  `password` when created from a partial template, so the injected value comes
+  out blank while `sync-env` reports success.
+
+### Operator token (#160, ADR-045)
+
+Since #160 every `/api/*` route (reads included) and the `/ws` upgrade require
+`Authorization: Bearer <HELM_API_TOKEN>`. Exempt: the signed webhook routes and
+`/health`. Unset, blank or shorter than 32 characters fails closed — the API
+starts, and those routes answer 401.
+
+On an instance whose ingress is public, that means an unprotected host serves
+the product and item inventory to anyone who reaches the URL. Confirm the
+exposure before deciding how urgently to update:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://<public-base-url>/api/products
+```
+
+`200` on a host running a revision older than #160 is the actual hole, not a
+warning about one.
+
+#### Updating an instance across #160 (order matters)
+
+Pulling #160 onto a running host without the token takes the API down: every
+operator route 401s and the dashboard proxy sends nothing. The env is written
+**before** the code is pulled, which is safe because the older revision ignores
+the variable:
+
+1. Generate one with `openssl rand -hex 32`.
+2. Store it in the vault the service account can read, as a `SECURE_NOTE`
+   concealed field (see the note above).
+3. Add `HELM_API_TOKEN=op://<scoped-vault>/<item>/<field>` to the host's input
+   file, then regenerate and confirm the value landed:
+   ```bash
+   grep -c '^HELM_API_TOKEN=' apps/api/.env          # 1
+   awk -F= '/^HELM_API_TOKEN=/{print length($2)}' apps/api/.env   # >= 32
+   grep -cE '^[A-Z0-9_]+=op://' apps/api/.env        # 0
+   ```
+4. Pull and install, then restart the supervised service explicitly (it runs
+   without `--watch`, so the old code stays in memory otherwise).
+5. Verify all four, not just health:
+
+   | Check | Expected |
+   |---|---|
+   | `/health` | 200, and a version matching the release |
+   | `/api/products` without a token | **401** |
+   | `/api/products` with `Bearer` | 200 |
+   | `/api/webhooks/github` | anything but 401 (exempt) |
+
+Use absolute paths in these checks. A shell that has just `ssh`'d in sits in
+`$HOME`, where `apps/api/.env` does not exist; the resulting
+`No such file or directory` says nothing about the env.
+
+#### The dashboard and the token
+
+The Vite dev proxy adds the token from its own environment, so the shell that
+runs it must export the same value:
+
+```bash
+export HELM_API_TOKEN=$(op read "op://<scoped-vault>/<item>/<field>")
+pnpm dev
+```
 
 ## Webhooks
 
@@ -117,12 +188,16 @@ When Linear reports that a webhook was disabled:
 
 ## Smoke checks
 
+Any route other than `/health` and the webhooks needs the operator token
+(#160); without it the smoke checks get 401, not an empty body.
+
 ```bash
 BASE=http://127.0.0.1:3001   # or the public base URL
+AUTH=(-H "Authorization: Bearer $HELM_API_TOKEN")
 curl -sf "$BASE/health"
-curl -s "$BASE/api/products" | jq '.[].product.slug'
-curl -s "$BASE/api/products/<product-slug>" | jq '.review.external.provider,.review.early_loop'
-curl -s "$BASE/api/items" | jq '.[].externalId'
+curl -s "${AUTH[@]}" "$BASE/api/products" | jq '.[].product.slug'
+curl -s "${AUTH[@]}" "$BASE/api/products/<product-slug>" | jq '.review.external.provider,.review.early_loop'
+curl -s "${AUTH[@]}" "$BASE/api/items" | jq '.[].externalId'
 ```
 
 Create and dispatch an item:
@@ -149,10 +224,15 @@ curl -s -X POST "$BASE/api/products/<product-slug>/items/<ITEM-ID>/dispatch"
    [tech-debt register](tech-debt.md), resolved 2026-11-23 in
    [helm#138](https://github.com/lhpaul/helm/issues/138). A read-only service
    account regenerates `apps/api/.env` on the host
-   ([runbook](secrets-service-account.md)).
+   ([runbook](secrets-service-account.md)). Its wider-than-intended scope was
+   narrowed the same day ([helm#171](https://github.com/lhpaul/helm/issues/171)).
 2. ~~**Residual race:** a status webhook could arrive before the pending intent
    was persisted.~~ → **TD-002**, resolved in
    [helm#140](https://github.com/lhpaul/helm/pull/140).
+3. ~~**No operator authentication on the API.**~~ → **helm#160** (ADR-045). The
+   instance above ran public and served `/api/products` and `/api/items` to any
+   client until it was updated on 2026-11-24; the token is now provisioned and
+   the same routes answer 401 without it.
 
 ## Related
 
